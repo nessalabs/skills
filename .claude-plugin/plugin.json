@@ -12,6 +12,7 @@
     "engineering",
     "architecture",
     "code-review",
+    "pull-requests",
     "performance",
     "testing",
     "debugging",
@@ -21,6 +22,7 @@
   "skills": [
     "./skills/engineering/coding",
     "./skills/engineering/system-architect",
+    "./skills/engineering/pull-requests",
     "./skills/engineering/method"
   ]
 }

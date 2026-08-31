@@ -1,0 +1,3 @@
+interface:
+  display_name: "Pull Requests"
+  short_description: "Write a PR description, and review one"

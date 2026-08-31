@@ -741,11 +741,12 @@ compound.
   module.
 - [references/patterns.md](references/patterns.md) — concrete techniques observed
   in long-lived high-performance systems, and the review comments that recur.
-- [references/review.md](references/review.md) — the review standard, change
-  size, commit conventions, and the diagnostics that say whether the structure is
-  still earning its keep.
+- [references/velocity.md](references/velocity.md) — the diagnostics that say
+  whether the structure is still earning its keep.
 - [references/adr.md](references/adr.md) — what earns a decision record, and the
   template.
 - [`coding`](../coding/SKILL.md) — the working method for an individual change.
+- [`pull-requests`](../pull-requests/SKILL.md) — how a change gets described,
+  sized, and reviewed.
 - [`method`](../method/SKILL.md) — how defects get found, verified, and kept from
   coming back.

@@ -20,8 +20,14 @@ and you can also invoke them by name.
   than it should.
   - References: [structure](./system-architect/references/structure.md),
     [patterns](./system-architect/references/patterns.md),
-    [review](./system-architect/references/review.md),
+    [velocity](./system-architect/references/velocity.md),
     [decision records](./system-architect/references/adr.md).
+- **[pull-requests](./pull-requests/SKILL.md)** — how to describe a change and
+  how to review one. The Motivation/Solution frame, before-and-after sections
+  with diagrams, what evidence to show, commit conventions, and the review
+  standard. Reach for it when opening, splitting, or reviewing a pull request,
+  or when writing a commit message.
+  - References: [diagrams](./pull-requests/references/diagrams.md).
 - **[method](./method/SKILL.md)** — how defects get found, how a hypothesis gets
   verified, and which artefact holds a fix in place. Reach for it when
   investigating a bug, chasing a performance problem, or deciding what to

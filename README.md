@@ -47,7 +47,7 @@ changes with `npx skills update`.
 
 ```bash
 git clone https://github.com/nessalabs/skills.git
-for s in coding system-architect method; do
+for s in coding system-architect pull-requests method; do
   ln -sfn "$PWD/skills/skills/engineering/$s" ~/.claude/skills/$s
 done
 ```
@@ -59,18 +59,20 @@ Codex and other Agent Skills harnesses.
 
 ## The skills
 
-All three are model-invoked: the agent reaches for them when a task fits, and
+All four are model-invoked: the agent reaches for them when a task fits, and
 you can also type them.
 
 | Skill | Reach for it when |
 | --- | --- |
 | **[coding](skills/engineering/coding/SKILL.md)** | You are about to write or modify code, or about to open a pull request. The working method: what to settle before writing, how to write, failure-first design, tests, performance method, how to shape the change, and how to review your own diff. |
 | **[system-architect](skills/engineering/system-architect/SKILL.md)** | You are designing a module, adding a dependency between two parts of a system, arguing about boundaries or layering, or a change has started touching more files than it should. |
+| **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The Motivation/Solution frame, before-and-after sections with mermaid diagrams, what evidence to show, and the review standard. |
 | **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, or deciding what to automate, test, or run in CI. |
 
 Each carries references that load only when the skill needs them: Rust and
 React/TypeScript practice and a testing guide under `coding`; structure,
-concrete patterns, review, and decision records under `system-architect`.
+concrete patterns, velocity diagnostics and decision records under
+`system-architect`; diagram conventions under `pull-requests`.
 
 Skills are grouped into buckets under `skills/`. There is one today —
 [`engineering`](skills/engineering/README.md) — and its

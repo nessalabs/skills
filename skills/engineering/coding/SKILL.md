@@ -14,6 +14,7 @@ The three layers, and when each applies:
 | **What to do in the language** | [Rust](references/rust.md), [React & TypeScript](references/react-typescript.md) | While writing in that language |
 | **How to find and prove things** | [`method`](../method/SKILL.md) | Investigating a bug, chasing a performance problem, deciding what to automate |
 | **What to test and what not to** | [testing](references/testing.md) | Deciding whether something needs a test, and which kind |
+| **How to describe and review a change** | [`pull-requests`](../pull-requests/SKILL.md) | Writing the description, sizing the change, reviewing someone else's |
 
 If you are writing in a language with no reference here, the method below still
 applies in full. Follow the surrounding code's idiom, and say plainly that you
@@ -179,6 +180,10 @@ deliberately did *not* do and why — it is what stops the next person from
 term. A stale map is worse than no map because people trust it.
 
 ## 7. Reviewing — including your own work
+
+The full review standard, the conventions, and how to describe a change live in
+[`pull-requests`](../pull-requests/SKILL.md). The short version, for the pass you
+make over your own diff before anyone else sees it:
 
 Approve when the change **definitely improves the overall health of the system**,
 even if it is not perfect. Perfect is not the bar; withholding approval in
