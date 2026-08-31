@@ -1,0 +1,23 @@
+{
+  "name": "nessalabs",
+  "owner": {
+    "name": "Nessa Labs",
+    "url": "https://github.com/nessalabs"
+  },
+  "description": "Nessa Labs engineering skills, as an installable Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "nessalabs-skills",
+      "source": "./",
+      "description": "How to design a system, how to write a change, and how to find and prove things - distilled from long-lived high-performance codebases.",
+      "category": "engineering",
+      "keywords": [
+        "engineering",
+        "architecture",
+        "code-review",
+        "performance",
+        "testing"
+      ]
+    }
+  ]
+}

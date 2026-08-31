@@ -1,0 +1,26 @@
+{
+  "name": "nessalabs-skills",
+  "version": "0.1.0",
+  "description": "Engineering skills distilled from the source, history, and review discussions of long-lived high-performance open source projects: how to design a system, how to write a change, and how to find and prove things.",
+  "author": {
+    "name": "Nessa Labs",
+    "url": "https://github.com/nessalabs"
+  },
+  "repository": "https://github.com/nessalabs/skills",
+  "license": "MIT",
+  "keywords": [
+    "engineering",
+    "architecture",
+    "code-review",
+    "performance",
+    "testing",
+    "debugging",
+    "rust",
+    "typescript"
+  ],
+  "skills": [
+    "./skills/engineering/coding",
+    "./skills/engineering/system-architect",
+    "./skills/engineering/method"
+  ]
+}

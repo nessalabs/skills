@@ -1,0 +1,3 @@
+interface:
+  display_name: "Method"
+  short_description: "Find defects, verify them, stop them coming back"

@@ -1,0 +1,11 @@
+{
+  "name": "nessalabs-skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Engineering skills distilled from long-lived, high-performance open source codebases",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nessalabs/skills"
+  },
+  "license": "MIT"
+}
