@@ -2,7 +2,7 @@
 
 How to design a system, how to write a change, and how to find and prove things.
 
-All three are **model-invoked**: the agent reaches for them when a task fits,
+All of these are **model-invoked**: the agent reaches for them when a task fits,
 and you can also invoke them by name.
 
 - **[coding](./coding/SKILL.md)** — the working method for any code change. What
@@ -32,6 +32,11 @@ and you can also invoke them by name.
   verified, and which artefact holds a fix in place. Reach for it when
   investigating a bug, chasing a performance problem, or deciding what to
   automate or run in CI.
+- **[trace](./trace/SKILL.md)** — reconstruct the real runtime call path of a
+  feature from source (every branch, layered like a stack, regenerated every
+  time). Reach for it when someone asks how something flows, what happens on
+  an action, or when they invoke `/trace`.
+  - References: [format](./trace/references/format.md).
 
 ## Adding a skill here
 
