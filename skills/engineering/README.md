@@ -2,7 +2,7 @@
 
 How to design a system, how to write a change, and how to find and prove things.
 
-All three are **model-invoked**: the agent reaches for them when a task fits,
+They are **model-invoked**: the agent reaches for them when a task fits,
 and you can also invoke them by name.
 
 - **[coding](./coding/SKILL.md)** — the working method for any code change. What
@@ -32,6 +32,8 @@ and you can also invoke them by name.
   verified, and which artefact holds a fix in place. Reach for it when
   investigating a bug, chasing a performance problem, or deciding what to
   automate or run in CI.
+- **[wdym](./wdym/SKILL.md)** — say it in plain human language first. Reach for
+  it on every reply to Saurav, and whenever `/wdym` is invoked.
 
 ## Adding a skill here
 

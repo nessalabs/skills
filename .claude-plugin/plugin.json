@@ -23,6 +23,7 @@
     "./skills/engineering/coding",
     "./skills/engineering/system-architect",
     "./skills/engineering/pull-requests",
-    "./skills/engineering/method"
+    "./skills/engineering/method",
+    "./skills/engineering/wdym"
   ]
 }
