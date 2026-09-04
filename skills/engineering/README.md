@@ -33,7 +33,9 @@ and you can also invoke them by name.
   investigating a bug, chasing a performance problem, or deciding what to
   automate or run in CI.
 - **[wdym](./wdym/SKILL.md)** — say it in plain human language first. Reach for
-  it on every reply to Saurav, and whenever `/wdym` is invoked.
+  it when explaining a design, a change, a diagnosis, or a result; when the
+  user asks what something means or wants it said more simply; and whenever
+  `/wdym` is invoked.
 
 ## Adding a skill here
 

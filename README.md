@@ -68,7 +68,7 @@ you can also type them.
 | **[system-architect](skills/engineering/system-architect/SKILL.md)** | You are designing a module, adding a dependency between two parts of a system, arguing about boundaries or layering, or a change has started touching more files than it should. |
 | **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The Motivation/Solution frame, before-and-after sections with mermaid diagrams, what evidence to show, and the review standard. |
 | **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, or deciding what to automate, test, or run in CI. |
-| **[wdym](skills/engineering/wdym/SKILL.md)** | Every reply to Saurav, or when `/wdym` is invoked. Lead with the plain human version — no jargon, like one person talking to another. |
+| **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user asks what something means, says they don't follow, or invokes `/wdym`. Lead with the plain human version — no jargon, like one person talking to another. |
 
 Each carries references that load only when the skill needs them: Rust and
 React/TypeScript practice and a testing guide under `coding`; structure,
