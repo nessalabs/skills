@@ -13,6 +13,7 @@ The three layers, and when each applies:
 | **How to work** | this document | Every code change |
 | **What to do in the language** | [Rust](references/rust.md), [React & TypeScript](references/react-typescript.md) | While writing in that language |
 | **How to find and prove things** | [`method`](../method/SKILL.md) | Investigating a bug, chasing a performance problem, deciding what to automate |
+| **How a feature actually runs** | [`trace`](../trace/SKILL.md) | Asking what happens on an action, how a call flows, or invoking `/trace` |
 | **What to test and what not to** | [testing](references/testing.md) | Deciding whether something needs a test, and which kind |
 | **How to describe and review a change** | [`pull-requests`](../pull-requests/SKILL.md) | Writing the description, sizing the change, reviewing someone else's |
 
