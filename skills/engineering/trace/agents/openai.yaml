@@ -1,0 +1,3 @@
+interface:
+  display_name: "Trace"
+  short_description: "Print the real call path of a feature from source"
