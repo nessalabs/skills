@@ -24,6 +24,7 @@
     "./skills/engineering/system-architect",
     "./skills/engineering/pull-requests",
     "./skills/engineering/method",
-    "./skills/engineering/trace"
+    "./skills/engineering/trace",
+    "./skills/engineering/wdym"
   ]
 }

@@ -47,7 +47,7 @@ changes with `npx skills update`.
 
 ```bash
 git clone https://github.com/nessalabs/skills.git
-for s in coding system-architect pull-requests method trace; do
+for s in coding system-architect pull-requests method trace wdym; do
   ln -sfn "$PWD/skills/skills/engineering/$s" ~/.claude/skills/$s
 done
 ```
@@ -59,7 +59,7 @@ Codex and other Agent Skills harnesses.
 
 ## The skills
 
-All five are model-invoked: the agent reaches for them when a task fits, and
+All six are model-invoked: the agent reaches for them when a task fits, and
 you can also type them.
 
 | Skill | Reach for it when |
@@ -69,6 +69,7 @@ you can also type them.
 | **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The Motivation/Solution frame, before-and-after sections with mermaid diagrams, what evidence to show, and the review standard. |
 | **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, or deciding what to automate, test, or run in CI. |
 | **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime call path of a feature — every branch, layered like a stack, regenerated from source. Reach for it on "how does X flow", "what happens when…", or `/trace`. |
+| **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user asks what something means, says they don't follow, or invokes `/wdym`. Lead with the plain human version — no jargon, like one person talking to another. |
 
 Each carries references that load only when the skill needs them: Rust and
 React/TypeScript practice and a testing guide under `coding`; structure,

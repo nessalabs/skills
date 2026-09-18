@@ -37,6 +37,10 @@ and you can also invoke them by name.
   time). Reach for it when someone asks how something flows, what happens on
   an action, or when they invoke `/trace`.
   - References: [format](./trace/references/format.md).
+- **[wdym](./wdym/SKILL.md)** — say it in plain human language first. Reach for
+  it when explaining a design, a change, a diagnosis, or a result; when the
+  user asks what something means or wants it said more simply; and whenever
+  `/wdym` is invoked.
 
 ## Adding a skill here
 
