@@ -251,6 +251,15 @@ foundation; it is a large surface that nothing can move without permission from.
 - **Prefer several small pieces with one job over one piece with a mode
   switch.** Two functions beat one function with a boolean. Two adapters beat
   one adapter with an `if`.
+- **One exception: a switch that exists to contain the risk of replacing a
+  mechanism.** Swapping a scheduler, a queue, or a storage engine is the case
+  where being able to turn the new one off is worth a mode. It is a rollout
+  seam, not configurability, and it comes with an owner, a default, contract
+  parity between both paths, CI that exercises *both*, a rollback procedure, and
+  a written criterion for deleting it. Say whether selection happens only at
+  startup — a live toggle needs a drain protocol, and a config flag alone does
+  not give you one. A replacement so coupled that it cannot be made optional is
+  a replacement that cannot be rolled back at three in the morning.
 - **Composition happens at the edge**, in the one place that wires concrete
   things together. The pieces themselves know nothing about who else exists.
 
@@ -409,6 +418,11 @@ surface. Worse, the flag only helps people who already know they need it — whi
 is nobody, until they have hit the problem in production. Track such flags as
 debt to be removed by fixing the design.
 
+The distinction that matters is what the flag is hiding. A flag covering a
+design flaw is debt. A flag covering the *rollout* of a mechanism replacement is
+a seam with a removal date — see §6. Reject the flag that buys flexibility
+nobody asked for; keep the one that buys reversibility.
+
 Two more habits:
 
 **One state, one representation.** A sentinel that means two things — a null
@@ -470,7 +484,10 @@ it is badly coupled, and the test is telling you so.
 **Test through the public surface.** Never open a private door to test — no
 "internals visible for testing", no test-only constructors that build states the
 production code cannot build. If you cannot reach a state through the real API,
-that state should not exist.
+that state should not exist. The one legitimate exception is an interleaving or
+an unsafe representation that no public entry point can drive to the failure: a
+module-local model test is the only instrument that reaches it, and it still
+does not justify making anything `pub`.
 
 **Match the test to the risk, not to the layer.**
 
@@ -535,9 +552,10 @@ independently, in parallel, without coordination. You engineer for it directly:
 - **Never break the main branch.** The default branch is always shippable. Work
   happens on branches; the branch is the unit of experiment.
 - **Cost of a change ≈ number of modules it touches.** When a routine feature
-  touches four modules, that is not a big feature — that is a boundary in the
-  wrong place, and you fix the boundary rather than getting better at touching
-  four modules.
+  touches four modules, look at the boundary before congratulating yourself on
+  the big feature — but subtract moves, generated files, and formatting first,
+  and confirm the four are really four *decisions*. The count is the prompt to
+  investigate; the coupling you find is the verdict.
 - **Make the common change a one-file change.** Look at the last ten changes.
   For each, ask how many files it *should* have touched. The gap between should
   and did is your architectural debt, measured honestly.
@@ -545,8 +563,12 @@ independently, in parallel, without coordination. You engineer for it directly:
   types, the wiring, and the gate, and *does nothing* — it cannot affect existing
   behaviour, which makes it reviewable on structure alone and revertible for
   free. Capability comes one increment at a time afterwards. A single change that
-  both builds machinery and uses it can be neither reviewed nor unwound.
-- **Refactor, then test, then change — as three commits.** First extract the
+  both builds machinery and uses it can be neither reviewed nor unwound. The
+  part people skip: **both sides of the gate need CI.** An off-by-default path
+  that nothing compiles is not staged work, it is dead code accruing rot — add
+  the job that builds and tests the feature enabled on the same day you add the
+  gate, and give the gate a stabilisation or removal criterion.
+- **Refactor, then test, then change — usually three commits.** First extract the
   logic so it is reachable from a test, saying "no functional change". Then add
   tests whose recorded output captures the current behaviour, *including the
   parts that are wrong*. Then change the behaviour — and the third diff is now a
@@ -583,6 +605,18 @@ You do not sprinkle performance work. You locate it.
 - **Batch at boundaries, stream in the middle.** Crossing a boundary is the
   expensive part. Do it once with everything rather than repeatedly with a
   little.
+- **An accelerator narrows work; it does not acquire authority.** A cache, an
+  index, a bloom filter, a precomputed candidate set, a materialised view: name
+  the source of truth, keep the derived thing on the other side of an explicit
+  boundary, and state the direction the error is allowed to run. A conservative
+  filter may hand back candidates that turn out not to match — false positives
+  cost time — but it must never drop a real one, and the authoritative path
+  still decides. Then say what happens when the derived state is missing,
+  stale, corrupt, or from an older version: fall back, rebuild, or fail, chosen
+  deliberately. "It is rebuildable" is not an availability answer, and an
+  optional accelerator with no fallback is a single point of failure that has
+  not been admitted yet. See
+  [patterns](references/patterns.md#derived-state-and-accelerators).
 - **Back-pressure is a design decision, not an accident.** Every queue, channel,
   and buffer has a bound and a documented behaviour when full. An unbounded
   queue is a memory leak that hasn't happened yet.
@@ -592,10 +626,13 @@ You do not sprinkle performance work. You locate it.
   others. Passing benchmarks are evidence, not proof.
 - **Quantify the claim.** "Peak memory down 5-15%, generation time down 30-70%"
   can be argued with and evaluated. "Faster" cannot.
-- **For a pure performance change, prove the output is unchanged.** Not "tests
-  pass" — byte-identical results on the full fixture set and on real and
-  pathological inputs. If a change is only supposed to alter timing, equality of
-  output is the entire correctness argument.
+- **For a pure performance change, prove the observable contract is unchanged.**
+  Not "tests pass" — byte-identical results on the full fixture set and on real
+  and pathological inputs. And where the system streams, schedules, or applies
+  backpressure, the contract includes *when* results become visible, what
+  ordering is permitted, and what resource bounds hold. Equality of the final
+  output is the entire correctness argument only for a batch API that promised
+  nothing about progress.
 - **Hunt the accidental quadratic.** The classic shape is a defensive copy made
   for a good local reason — ownership, immutability, avoiding aliasing — sitting
   inside a loop over something that grows.

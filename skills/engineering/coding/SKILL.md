@@ -87,6 +87,23 @@ Design the interrupted case before the happy path — the happy path will be fin
 
 - **One state, one representation.** A sentinel meaning two things will be read
   as the wrong one, and the case where it matters is always a retry or a restart.
+- **An ambiguous observation is not a terminal state.** Before letting a zero, an
+  empty, a `None`, or a timeout move something to finished, closed, or
+  exhausted, write down every other thing it could mean. A read that returned
+  nothing because the buffer had no room is not end of stream. The damage shows
+  up on the *next* call, not this one.
+- **Set up a group of workers failure-atomically.** Anything that reserves
+  slots, counts participants, or publishes handles before they are all live has
+  a window where a failure — especially a panic in a caller-supplied
+  constructor — leaves the peers waiting on a participant that will never exist.
+  Construct them all first, or reserve with a rollback, or install the guard
+  before anyone can block. Inject a failure at each setup position and see who
+  wakes the ones already started.
+- **Ambient state is an input.** Working directory, environment, locale, clock,
+  home directory: if it decides what the operation *means*, capture it once at
+  the boundary and pass that value down. Two layers rereading mutable process
+  state during one operation will eventually disagree. Do not thread the ones
+  that are only telemetry.
 - **Cleanup is structural, never remembered.** Tie removal to a scope, a guard,
   or a lifetime — not to a teardown call on every exit path, because the path
   that gets forgotten is the successful one.
@@ -105,9 +122,14 @@ Design the interrupted case before the happy path — the happy path will be fin
 that would have failed before.** If you cannot write one, say so in the change
 and say why.
 
-- **Through the public surface only.** No test-only visibility, no test-only
-  constructor. If a state is unreachable through the real API, it should not
-  exist.
+- **Through the public surface by default.** No test-only visibility, no
+  test-only constructor. If a state is unreachable through the real API, it
+  should not exist. The one exception is an invariant that no public entry point
+  can drive to the interleaving that breaks it — a cancellation protocol, an
+  unsafe representation: a focused internal test or bounded model is the right
+  tool there. Keep it local, do not widen production visibility for it, and pair
+  it with a public regression test. Say what the model bounds are; a bounded
+  model that passes is not a proof about production.
 - **Real dependencies over mocks.** Mock only what you cannot run. Doubles for
   your own domain test your doubles.
 - **Determinism is injected.** Clock, randomness, ordering, I/O. A flaky test is
@@ -135,14 +157,29 @@ Do not sprinkle it. Locate it.
    overall" tells the reviewer how much complexity the change may justify.
 3. **Quantify the result with its scenario.** A number with the workload attached
    is evaluable; "faster" is not.
-4. **For a pure performance change, prove the output is unchanged** — identical
-   results on the full fixture set and on pathological inputs, not merely a
-   passing suite.
-5. **Hunt the accidental quadratic first.** A per-item function computing
+4. **For a pure performance change, prove the whole observable contract is
+   unchanged.** For a deterministic batch API that is identical output on the
+   full fixture set and on pathological inputs, not merely a passing suite.
+   Where the API promises streaming, incremental delivery, line buffering,
+   backpressure, or cancellation, *when* a result becomes visible is part of the
+   contract too: a loop that fills the buffer before returning can be cheaper per
+   byte, produce the same final bytes, and still be wrong. Test it against a
+   producer that stays open and emits one small unit at a time.
+5. **Benchmark the workload it should lose on**, not only the one it was written
+   for. Low and high concurrency, short and long tasks, full and partial
+   batches. Report both results; a win at one point on the curve is not a
+   speedup.
+6. **Hunt the accidental quadratic first.** A per-item function computing
    something over all items; a defensive copy inside a growing loop. These
    dominate micro-optimisation by orders of magnitude.
-6. **Prefer once-and-only-if-needed** over eager, and eager over recomputed.
-7. **Revert an optimisation you cannot maintain.** Whatever the benchmark says,
+7. **Skip work only when its result cannot reach anything** — no future
+   iteration, no output, no error that is still part of the contract. Then keep
+   the structural bookkeeping the surrounding protocol needs: "we will not visit
+   the children" does not mean "we can skip the enter and exit". The test worth
+   writing makes the skipped work observable if it happens — put something
+   malformed where it would have been parsed and assert no error surfaces.
+8. **Prefer once-and-only-if-needed** over eager, and eager over recomputed.
+9. **Revert an optimisation you cannot maintain.** Whatever the benchmark says,
    code nobody can safely modify is a liability.
 
 Language specifics: [Rust](references/rust.md#doing-performance-work),
@@ -201,6 +238,13 @@ Ask these, of your own diff first:
 - Did a refactor quietly narrow a lock, a scope, or a guard?
 - Is there state here that exists only to serve a speculative accessor?
 - Is an obligation repeated at every call site instead of encapsulated once?
+- Does a consumer assume a bound the producer never actually promised — that a
+  match ends inside the range it was given, that a result is sorted, that a
+  handle outlives the call? Write the producer's real postconditions down
+  separately from what the caller passed in.
+- Does a new backend, engine, or fast path accept an option it does not actually
+  implement? Silent partial support is a correctness bug even when the common
+  case looks right.
 - Do two things now have to be kept in sync by hand?
 - Is a claim in the description actually true — walk the interrupted, repeated,
   and re-entered paths yourself rather than accepting the answer.
@@ -219,8 +263,10 @@ is actually fixed"*, followed by the reviewer walking the path themselves.
 
 - The change does one thing, and the message says which.
 - A test fails without it.
-- It touches the number of files it *should* touch. If a routine change touched
-  four modules, that is a boundary problem, not a big feature.
+- It touches the number of files it *should* touch. A routine change spread
+  across four modules is a question to answer, not a verdict: separate the
+  semantic edits from moves, generated files, lockfiles, and formatting first,
+  then ask whether what is left is really one change.
 - No new absence-invariant was violated (see
   [structure](../system-architect/references/structure.md#the-absences)).
 - Anything expensive to reverse has a written note or a
