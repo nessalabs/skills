@@ -27,11 +27,12 @@ friction — it is the test proving the API is usable.
 
 The exception is a protocol the public API cannot drive to the point where it
 breaks: a cancellation race, an unsafe representation, a lock-ordering rule. A
-focused internal test or a bounded model checker is the only instrument that
-reaches those, and reaching for it is correct. Keep it in the module, widen no
-visibility for it, pair it with a public regression test, and write down what
-the model bounded — it proves a property of the model within the schedules it
-explored, which is worth a lot and is not a proof about production.
+module-local test or a bounded model checker is the only instrument that reaches
+those, and reaching for it is correct — on four conditions. It stays in the
+module, it widens no visibility, it is paired with a public regression test, and
+the change says what the model bounded. A model proves a property of the model
+within the schedules it explored; that is worth a lot and is not a proof about
+production.
 
 **Real dependencies over mocks.** Mock only what you cannot run: a third-party
 service, a paid API, hardware you do not have. Mocking your own domain tests
@@ -58,13 +59,11 @@ not know what I was asserting".
 
 - Private methods and internal call sequences. These are the things you most
   want to be free to change; a test on them is a refactoring tax. Asserting a
-  state or ownership relationship inside a module is a different thing from
-  asserting which private helper it called in which order — the first is the
-  exception above, the second is the tax.
+  state or ownership relationship is the exception above; asserting which helper
+  was called in which order is the tax.
 - Call counts standing in for behaviour. When the claim is "we no longer parse
-  that file", the strong test puts a malformed file where it would have been
-  parsed and asserts nothing goes wrong. A spy on a private call count asserts
-  the implementation instead of the effect.
+  that file", put a malformed file where it would have been parsed and assert
+  nothing goes wrong. A spy on a call count asserts the implementation.
 - Framework behaviour. The UI library renders; assume it.
 - Generated or trivially derived code.
 - Exact markup or pixel output, except where a rendering *is* the product

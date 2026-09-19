@@ -251,15 +251,14 @@ foundation; it is a large surface that nothing can move without permission from.
 - **Prefer several small pieces with one job over one piece with a mode
   switch.** Two functions beat one function with a boolean. Two adapters beat
   one adapter with an `if`.
-- **One exception: a switch that exists to contain the risk of replacing a
-  mechanism.** Swapping a scheduler, a queue, or a storage engine is the case
-  where being able to turn the new one off is worth a mode. It is a rollout
-  seam, not configurability, and it comes with an owner, a default, contract
-  parity between both paths, CI that exercises *both*, a rollback procedure, and
-  a written criterion for deleting it. Say whether selection happens only at
-  startup — a live toggle needs a drain protocol, and a config flag alone does
-  not give you one. A replacement so coupled that it cannot be made optional is
-  a replacement that cannot be rolled back at three in the morning.
+- **One exception: a switch that contains the risk of replacing a mechanism.**
+  Swapping a scheduler, a queue, or a storage engine is where being able to turn
+  the new one off is worth a mode. That is a rollout seam, not configurability,
+  and it carries an owner, contract parity between both paths, CI on both, a
+  rollback procedure, and a written criterion for deleting it. Say whether
+  selection happens only at startup: a live toggle needs a drain protocol, and a
+  config flag does not give you one. A replacement too coupled to be made
+  optional is a replacement that cannot be rolled back at three in the morning.
 - **Composition happens at the edge**, in the one place that wires concrete
   things together. The pieces themselves know nothing about who else exists.
 
@@ -418,10 +417,10 @@ surface. Worse, the flag only helps people who already know they need it — whi
 is nobody, until they have hit the problem in production. Track such flags as
 debt to be removed by fixing the design.
 
-The distinction that matters is what the flag is hiding. A flag covering a
-design flaw is debt. A flag covering the *rollout* of a mechanism replacement is
-a seam with a removal date — see §6. Reject the flag that buys flexibility
-nobody asked for; keep the one that buys reversibility.
+The distinction is what the flag hides. Covering a design flaw, it is debt;
+covering the *rollout* of a mechanism replacement, it is a seam with a removal
+date (§6). Reject the flag that buys flexibility nobody asked for; keep the one
+that buys reversibility.
 
 Two more habits:
 
@@ -564,30 +563,22 @@ independently, in parallel, without coordination. You engineer for it directly:
   behaviour, which makes it reviewable on structure alone and revertible for
   free. Capability comes one increment at a time afterwards. A single change that
   both builds machinery and uses it can be neither reviewed nor unwound. The
-  part people skip: **both sides of the gate need CI.** An off-by-default path
-  that nothing compiles is not staged work, it is dead code accruing rot — add
-  the job that builds and tests the feature enabled on the same day you add the
-  gate, and give the gate a stabilisation or removal criterion.
-- **Refactor, then test, then change — usually three commits.** First extract the
-  logic so it is reachable from a test, saying "no functional change". Then add
-  tests whose recorded output captures the current behaviour, *including the
-  parts that are wrong*. Then change the behaviour — and the third diff is now a
-  precise list of what changed.
-- **Name the change that introduced the defect.** Every regression fix carries a
-  reference to the commit that caused it. It costs one blame and it makes the
-  history queryable: what did this break, how long did it take to notice, which
-  areas keep regressing.
-- **Make the structural change ahead of the feature that needs it, on its own.**
+  part people skip: **both sides of the gate need CI**, from the day the gate
+  lands. An off-by-default path that nothing compiles is not staged work, it is
+  dead code accruing rot.
+- **Land the structural change ahead of the feature that needs it, on its own.**
   A refactor that lands alone — motivated by a capability that does not exist
   yet — is reviewable on its structure and revertible for free. Bundled with the
   feature, it is neither.
-- **Map the steps of a change to its commits.** A description with *why* and a
-  numbered *what*, where each step names the commit that performs it, lets a
-  reviewer take one idea at a time. It is five minutes of authoring for a
-  qualitatively better review.
 - **Prefer additive evolution at seams.** Add a new field, a new event version,
   a new port implementation. Removing comes later, once nothing reads the old
   thing. Big-bang migrations are how a quarter disappears.
+
+The mechanics that deliver this — splitting refactor from behaviour change,
+mapping steps to commits, naming the change that introduced a defect, what to
+subtract before judging a diff's size — live in
+[`pull-requests`](../pull-requests/SKILL.md#size-and-shape). They are the same
+rules; this section is why they are structural and not etiquette.
 
 ---
 
@@ -606,16 +597,11 @@ You do not sprinkle performance work. You locate it.
   expensive part. Do it once with everything rather than repeatedly with a
   little.
 - **An accelerator narrows work; it does not acquire authority.** A cache, an
-  index, a bloom filter, a precomputed candidate set, a materialised view: name
-  the source of truth, keep the derived thing on the other side of an explicit
-  boundary, and state the direction the error is allowed to run. A conservative
-  filter may hand back candidates that turn out not to match — false positives
-  cost time — but it must never drop a real one, and the authoritative path
-  still decides. Then say what happens when the derived state is missing,
-  stale, corrupt, or from an older version: fall back, rebuild, or fail, chosen
-  deliberately. "It is rebuildable" is not an availability answer, and an
-  optional accelerator with no fallback is a single point of failure that has
-  not been admitted yet. See
+  index, a bloom filter, a materialised view: name the source of truth, keep the
+  derived thing behind its own boundary, and state which way its error may run.
+  A conservative filter may return candidates that turn out not to match; it may
+  never drop a real one, and the authoritative path still decides. Details, and
+  what to do when the derived state is stale or corrupt, in
   [patterns](references/patterns.md#derived-state-and-accelerators).
 - **Back-pressure is a design decision, not an accident.** Every queue, channel,
   and buffer has a bound and a documented behaviour when full. An unbounded

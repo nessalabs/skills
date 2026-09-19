@@ -104,10 +104,9 @@ Whatever kind of change this is, show that it works:
 - **A pure performance change** — state which observable contract is unchanged,
   and how you checked. *"All fixtures produce byte-identical output; also
   verified against real inputs and pathological cases."* If the code streams,
-  buffers, or schedules, say what happens to latency and progress as well: the
-  same final bytes arriving only at EOF is a regression, not an equivalence.
-  Mark upstream or reported numbers as theirs, and say which measurements you
-  did not run rather than leaving the reader to assume you did.
+  buffers, or schedules, cover latency and progress too: the same final bytes
+  arriving only at EOF is a regression, not an equivalence. Mark reported
+  numbers as theirs, and name the measurements you did not run.
 - **A user-visible change** — a screenshot, or a recording. Two, if there was a
   before.
 - **A large mechanical change** — say what makes it safe. *"If there are
@@ -148,16 +147,15 @@ These cost nothing and buy trust:
   structure and revertible for free. Bundled with the feature, it is neither.
 - **Mechanical changes go in their own commit, clearly labelled**, so the
   reviewer can check the edges and skip the body.
-- **When two optimisations ride in one change, keep their evidence separate.**
-  If one of them regresses behaviour later, the cheap fix is reverting that
-  hunk — which is only possible if anyone can tell which win came from which
-  mechanism.
-- **Line and file counts start an investigation, they do not end one.** Before
-  judging the size of a diff, subtract moves, generated files, lockfiles, and
-  formatting: a change that touches forty files and two semantic lines is a
-  dependency bump wearing a costume. Three commits is the usual shape, not a
-  quota — take the number from the dependency structure, and require that every
-  step meant to land on its own holds its stated invariants.
+- **When two optimisations ride in one change, keep their evidence separate**,
+  so a later regression can be reverted by the hunk that caused it rather than
+  by the whole change.
+- **Line and file counts start an investigation, they do not end one.** Subtract
+  moves, generated files, lockfiles, and formatting before judging a diff's
+  size: forty files and two semantic lines is a dependency bump wearing a
+  costume. Three commits is the usual shape, not a quota — take the number from
+  the dependency structure, and make every step that lands on its own hold its
+  stated invariants.
 
 ### Before large or irreversible work
 
