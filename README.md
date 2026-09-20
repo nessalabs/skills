@@ -68,14 +68,14 @@ you can also type them.
 | **[system-architect](skills/engineering/system-architect/SKILL.md)** | You are designing a module, adding a dependency between two parts of a system, arguing about boundaries or layering, or a change has started touching more files than it should. |
 | **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The Motivation/Solution frame, evidence per kind of claim, what blocks and what does not. |
 | **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, weighing evidence, or deciding what to automate, test, or run in CI. |
-| **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime call path of a feature, every branch, layered like a stack, regenerated from source. `/trace`. |
+| **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime path of a feature, or where a delay, hang, or duplicate could come from. Walks the syntax tree one hop at a time; marks locks, waits, handoffs, and state; ends a debugging trace with suspects and probes. `/trace`. |
 | **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user says they don't follow. Lead with the plain human version. `/wdym`. |
 
 Each carries references that load only when the skill needs them: how to
 think in Rust and in React/TypeScript, and the testing rules, under `coding`;
 structure, concrete patterns, velocity diagnostics and decision records under
 `system-architect`; diagram conventions under `pull-requests`; call-path
-format under `trace`.
+format and a parser-driven expand script under `trace`.
 
 Every lesson has exactly one owner among these files; the others point at it.
 Each skill opens with how to think before it gives rules, so an agent can

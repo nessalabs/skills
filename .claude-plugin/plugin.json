@@ -1,6 +1,6 @@
 {
   "name": "nessalabs-skills",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Engineering skills distilled from the source, history, and review discussions of long-lived high-performance open source projects: how to design a system, how to write a change, and how to find and prove things.",
   "author": {
     "name": "Nessa Labs",

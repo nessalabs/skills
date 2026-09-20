@@ -36,10 +36,15 @@ fits, and you can also invoke them by name.
   verified, what counts as evidence, and which artefact holds a fix in place.
   Reach for it when investigating a bug, chasing a performance problem, or
   deciding what to automate or run in CI.
-- **[trace](./trace/SKILL.md)**: reconstruct the real runtime call path of a
-  feature from source. Reach for it when someone asks how something flows or
-  invokes `/trace`.
-  - References: [format](./trace/references/format.md).
+- **[trace](./trace/SKILL.md)**: reconstruct the real runtime path of a
+  feature from source, one hop at a time through the syntax tree, with locks,
+  waits, handoffs, and state writes marked. In debugging mode it starts from
+  a symptom and ends with ranked suspects, probes, invariants, and where a
+  test goes. Reach for it when someone asks how something flows, where a
+  delay or hang could come from, or invokes `/trace`.
+  - References: [format](./trace/references/format.md). Script:
+    [expand.py](./trace/scripts/expand.py), which prints a function's callees
+    with file and line so the walk never reads a whole file.
 - **[wdym](./wdym/SKILL.md)**: say it in plain human language first. Reach for
   it when explaining a design, a change, a diagnosis, or a result, and
   whenever `/wdym` is invoked.
@@ -60,6 +65,7 @@ files disagree, the owner is right and the other is a bug. The owners:
 | Concrete techniques: seams, gating, accelerators, concurrency protocols | `system-architect/references/patterns.md` |
 | Description format, evidence per claim, commit shaping, review standard, what blocks | `pull-requests` |
 | Finding instruments, verification, evidence classes, holding a fix in place, CI cadence | `method` |
+| Walking a runtime path, its markers, and the debugging-mode ending | `trace` |
 
 **The general idea, not the case.** A rule is written as the transferable
 principle. The project it came from, its pull request numbers, its line
@@ -86,6 +92,7 @@ Every skill directory carries:
   SKILL.md              name + description frontmatter, then the procedure
   agents/openai.yaml    display_name and short_description, for Codex
   references/           optional; loaded on demand by SKILL.md
+  scripts/              optional; tools the procedure runs, self-contained
 ```
 
 The `description` is what makes the agent reach for the skill, so it states
