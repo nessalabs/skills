@@ -100,6 +100,48 @@ forever ships behind an explicit unstable flag, and the promise is made later,
 deliberately, as its own decision. Without this, every merged feature is an
 accidental permanent commitment.
 
+**Both sides of a gate are tested, or the gate is a lie.** The build everyone
+runs must be unable to reach the experimental path, and a dedicated CI job must
+build and test it enabled, from the change that introduces the gate. That is
+what makes developing a large feature on the main branch cheaper than a
+long-lived branch; without it you get the merge pain *and* code that has not
+compiled in a month. Give the gate a stabilisation or removal criterion when you
+add it.
+
+---
+
+## Derived state and accelerators
+
+For anything whose job is to avoid authoritative work: a cache, a search index,
+a bloom filter, a precomputed candidate set, a routing summary, a second
+execution engine.
+
+**Put the accelerator behind its own boundary before wiring it in.** A separate
+crate or module with its own versioning keeps "we made search faster" from
+becoming "search and indexing are now one thing" — and keeps deleting the
+experiment cheap, which is the outcome most such experiments deserve.
+
+**Write down which way the error may run, in the module doc, before anything
+depends on it.** The useful shape for a candidate filter: *it never claims a
+match, it returns what it cannot rule out; the authoritative path verifies;
+false positives cost time, false negatives are a bug.* Let an accelerator answer
+rather than narrow and every corruption becomes a wrong answer instead of a slow
+one.
+
+**Derived means rebuildable, which is a separate question from available.** Say
+what happens when it is absent, stale, locked, corrupt, or written by an older
+version — fall back, rebuild in the background, rebuild on demand, or refuse —
+and measure the fallback before calling the system resilient. Failing closed is
+a legitimate choice to write down at the selection boundary, not a default to
+drift into.
+
+**A new engine starts compatible with nothing.** When an established feature
+gains a second execution path, classify every existing option combination:
+proven equivalent, falls back, explicitly refused, or deliberately different.
+Start paranoid and widen with tests. The worst available outcome is the
+unsupported combination that returns plausible output, because nobody finds
+out.
+
 ---
 
 ## Concurrency and failure
@@ -113,6 +155,15 @@ compiler cannot express it.
 
 Adopt the format even for modest state: **for each field, one line saying who
 writes it and who reads it.**
+
+**Splitting a lock is a protocol change, not a storage change.** Before
+replacing one shared mutex with shards, write the old and new ownership maps
+side by side — per field: who writes it, under what protection, who reads it to
+decide something, and when that decision goes stale. Then list the orderings the
+single lock gave you for free: admission against shutdown, publication against
+sleeping, the last worker exiting against new work arriving. Proving each shard
+thread-safe says nothing about those. Test at low worker counts and small
+capacities as well as high, and assert progress, not absence of corruption.
 
 **Encode the concurrency contract in type names.** A single shared buffer exposed
 as two types — one meaning "producer handle, single thread only", one meaning

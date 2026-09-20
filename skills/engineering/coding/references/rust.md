@@ -30,10 +30,22 @@ handle, a config, a clock — goes in the first parameter position. It reads as
 "in this context, do this", and it means adding or removing context does not
 churn the interesting arguments.
 
+**Take the ambient root as a parameter when it changes the meaning.** A library
+calling `current_dir()` deep inside an operation has made mutable process state
+part of its semantics and left the caller no way to control it. Capture it once
+at the boundary — a `OnceLock` if it must be lazy — and let callers supply it,
+so every layer normalises against the same root.
+
 **Push conditionals up, push loops down.** A function that sometimes does nothing
 depending on state it reads itself cannot be reasoned about locally; hoist the
 condition to the caller. Conversely, a function called in a loop should usually
 take the whole batch, so the per-item cost is paid once.
+
+**A check another thread can invalidate does not move to the caller.** Hoisting
+`is_cancelled()` out of the insertion it authorises creates a race that did not
+exist, and usually a second lock acquisition as well. Give the state owner one
+operation that decides and acts under the same protection and returns what
+happened; a caller-side pre-check is a hint, never the authority.
 
 **Minimise what is `pub`.** Everything public is a promise. Prefer
 `pub(crate)`, and make a thing public only when something outside actually needs
@@ -46,6 +58,12 @@ field can hold any value without breaking anything, make it public. If it cannot
 document the rule, make the field private, and enforce it in the one function
 that can construct the type. The invariant is then verified by reading a single
 file.
+
+**Do not invent a postcondition the producer never promised.** A range handed
+*into* a matcher, parser, or decoder is not a bound on what comes back — with
+look-around or multiline modes a match can legally end past the slice you
+supplied, and slicing on that assumption panics. Either handle the wider case,
+or get the bound stated and tested on the producer's side.
 
 **Newtype anything with a unit or a meaning.** `SessionId(String)`,
 `Millis(u64)`, `Points(f64)`. Primitive obsession is the cheapest possible bug:
@@ -154,6 +172,27 @@ oldest, drop newest, error — and document it.
 parked worker, scheduling a re-render, invalidating a cache — these often happen
 unconditionally when the state already guarantees they are redundant.
 
+**Releasing the resource is half the obligation; waking whoever waits on it is
+the other half.** Returning permits through the raw semaphore instead of the
+normal release path is the classic way to leave a closed receiver asleep
+forever. For every exit — success, error, cancellation, timeout, panic — name
+both the owner that returns the resource and the transition that makes the
+waiter runnable, and when you find one release route broken, read its siblings.
+A drop guard covers the paths you would forget; disarm it when the successor
+owns the obligation. In a manually polled test, assert the future was *woken*
+before polling it again: forced polls hide exactly this bug.
+
+**Construct the whole worker set before starting any of it.** A user-supplied
+factory that panics partway leaves an active count including participants that
+never existed — nothing poisons the shared state and the started workers wait
+forever. Test the panic at the first, middle, and last position.
+
+**A fixed pool or cache capacity is a concurrency ceiling.** Scratch pools,
+shard counts, connection limits: a constant that was generous on four cores
+serialises on thirty-two. Size it from available parallelism where that is the
+right envelope, and say what the extra slots cost — a container's quota is not
+the host's core count.
+
 **Route synchronisation primitives through one internal module.** Import your
 atomics, locks, and cells from an internal shim that re-exports either the real
 ones or instrumented ones under a build flag. Then exhaustive concurrency testing
@@ -196,6 +235,12 @@ must document whether partial work is visible, and every `select!` arm is a
 cancellation point. Cancellation safety is documentation, not an implementation
 detail.
 
+**Say when output becomes observable.** Anything with `line_buffered`, `flush`,
+or incremental delivery in its vocabulary has a latency contract as well as a
+throughput one, and buffering breaks it silently — the bytes are all correct,
+they just arrive when the producer closes. Batch API or streaming API: say
+which, and test the open-ended producer that emits one unit at a time.
+
 **Never block in async context.** Filesystem calls, heavy computation, and
 synchronous locks held across an `await` stall the whole executor. Move them to
 a blocking pool, and treat "does this ever block?" as a review question for every
@@ -207,10 +252,16 @@ deadlock.
 
 ## Testing and tooling
 
-**Test through the public surface only.** No test-only visibility, no test-only
-constructors. If a state is unreachable through the real API, it should not
-exist. When a private helper genuinely cannot be reached, say so in the change
-rather than inventing a door.
+**Test through the public surface by default.** No test-only visibility, no
+test-only constructors. If a state is unreachable through the real API, it
+should not exist. When a private helper genuinely cannot be reached, say so in
+the change rather than inventing a door.
+
+**The exception is an interleaving the public API cannot drive.** A cancellation
+race or a lock-ordering rule is reachable only by a `#[cfg(test)]` model under
+the concurrency checker, and that is the right tool — module-local, nothing made
+`pub` for it, paired with a public regression test. Record what the model
+bounded: a passing single-shard model says nothing about cross-shard behaviour.
 
 **Compile-fail tests protect type-level invariants.** When you encode a rule in
 the type system, add a test asserting that the illegal usage *fails to compile*,
@@ -235,12 +286,23 @@ claim. It also tells the reviewer how much complexity the change may justify.
 **Quantify the result in the change description**, with the benchmark and the
 machine. A performance claim without a number is a rumour.
 
-**For a pure performance change, prove the output is unchanged bit for bit** —
-on the full fixture set and on pathological inputs, not just "tests pass".
+**For a pure performance change, prove the observable contract is unchanged.**
+For deterministic byte-producing code that means bit for bit, on the full
+fixture set and on pathological inputs, not just "tests pass". For concurrent or
+streaming code it means the permitted results and ordering, eventual progress,
+cancellation semantics, and resource bounds — not one incidental schedule, and
+not only the final bytes.
 
 **Benchmark the contention, not only the throughput.** A change that improves
 single-threaded speed can lose badly under concurrency. If the code is shared,
-the benchmark must exercise it from several threads.
+the benchmark must exercise it from several threads — and report the
+single-threaded loss when there is one, rather than only the row that wins.
+
+**A source-level reduction in work is not a measured speedup.** Removing a
+clone or a second lock acquisition is a mechanism claim — say so rather than
+implying an end-to-end number you did not measure. When one change carries two
+optimisations, attribute the results per mechanism: that is what lets a later
+regression be rolled back by the hunk that caused it.
 
 **Revert an optimisation you cannot maintain.** The clearest example of good
 judgement seen in this space: a subtle optimisation kept producing fuzzer
