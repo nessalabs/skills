@@ -64,18 +64,24 @@ you can also type them.
 
 | Skill | Reach for it when |
 | --- | --- |
-| **[coding](skills/engineering/coding/SKILL.md)** | You are about to write or modify code, or about to open a pull request. The working method: what to settle before writing, how to write, failure-first design, tests, performance method, how to shape the change, and how to review your own diff. |
+| **[coding](skills/engineering/coding/SKILL.md)** | You are about to write or modify code. The problem-solving loop, what to settle before writing, how to write, failure-first design, performance method, and how to report what you did. |
 | **[system-architect](skills/engineering/system-architect/SKILL.md)** | You are designing a module, adding a dependency between two parts of a system, arguing about boundaries or layering, or a change has started touching more files than it should. |
-| **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The Motivation/Solution frame, before-and-after sections with mermaid diagrams, what evidence to show, and the review standard. |
-| **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, or deciding what to automate, test, or run in CI. |
-| **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime call path of a feature — every branch, layered like a stack, regenerated from source. Reach for it on "how does X flow", "what happens when…", or `/trace`. |
-| **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user asks what something means, says they don't follow, or invokes `/wdym`. Lead with the plain human version — no jargon, like one person talking to another. |
+| **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The Motivation/Solution frame, evidence per kind of claim, what blocks and what does not. |
+| **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, weighing evidence, or deciding what to automate, test, or run in CI. |
+| **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime call path of a feature, every branch, layered like a stack, regenerated from source. `/trace`. |
+| **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user says they don't follow. Lead with the plain human version. `/wdym`. |
 
-Each carries references that load only when the skill needs them: Rust and
-React/TypeScript practice and a testing guide under `coding`; structure,
-concrete patterns, velocity diagnostics and decision records under
+Each carries references that load only when the skill needs them: how to
+think in Rust and in React/TypeScript, and the testing rules, under `coding`;
+structure, concrete patterns, velocity diagnostics and decision records under
 `system-architect`; diagram conventions under `pull-requests`; call-path
 format under `trace`.
+
+Every lesson has exactly one owner among these files; the others point at it.
+Each skill opens with how to think before it gives rules, so an agent can
+handle the case the rules did not anticipate. The owner table and the rules
+for adding a lesson are in the
+[engineering index](skills/engineering/README.md#how-the-set-is-organised).
 
 Skills are grouped into buckets under `skills/`. There is one today —
 [`engineering`](skills/engineering/README.md) — and its
@@ -101,9 +107,12 @@ without coordination, and that is a property you design for directly.
 
 ## Contributing
 
-A rule earns its place by having been learned expensively somewhere real. If you
-add one, say in the pull request where it came from and what it cost — the
-citation does not belong in the skill, but a reviewer needs it. Rules that are
-merely reasonable get cut; there are already too many of those in circulation.
+A rule earns its place by having been learned expensively somewhere real. If
+you add one, say in the pull request where it came from and what it cost: the
+citation, the numbers, and the case stay in the pull request, and the skill
+gets the general idea in the voice of the file that owns the topic. Amend a
+rule that is too absolute rather than appending an exception beside it. Rules
+that are merely reasonable get cut; there are already too many of those in
+circulation.
 
 MIT licensed.

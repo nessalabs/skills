@@ -1,15 +1,15 @@
 # Structuring a codebase
 
-The persona's rules in [../SKILL.md](../SKILL.md) turned into concrete layout.
-Language-agnostic: the names below are roles, not directory names you must use.
+The rules in [../SKILL.md](../SKILL.md) turned into concrete layout.
+Language-agnostic: the names below are roles, not directory names you must
+use.
 
 ## When to apply this
 
 A five-file module does not need a four-layer split, and imposing one early is
-its own kind of damage. The trigger for applying the structure below is a
-concept acquiring **an invariant** (something that must always be true), **a
-second consumer**, or **its own persistence**. Until then, one well-named file
-is correct.
+its own kind of damage. The trigger for the structure below is a concept
+acquiring **an invariant**, **a second consumer**, or **its own persistence**.
+Until then, one well-named file is correct.
 
 ## Shape
 
@@ -23,8 +23,8 @@ is correct.
 
 Everything except `contracts/` is private to the module. Other modules import
 `contracts/` and nothing else. This is the single most valuable rule here,
-because it is the one that stops a change to one feature from becoming a change
-to five.
+because it is the one that stops a change to one feature from becoming a
+change to five.
 
 ## Dependency direction
 
@@ -35,13 +35,9 @@ adapters  ──────►  application  ──────►  domain
 ```
 
 The arrow never reverses. The domain does not import the application. The
-application does not import an adapter — it declares the **port** it needs, and
-an adapter satisfies it. This is not ceremony: it is what lets you test the
-middle of the system without booting the edges, and swap an edge without
-renegotiating the middle.
-
-If an import in a diff crosses these arrows the wrong way, that is the review
-comment — before correctness, before style.
+application does not import an adapter; it declares the **port** it needs, and
+an adapter satisfies it. If an import in a diff crosses these arrows the wrong
+way, that is the review comment, before correctness, before style.
 
 ## Naming
 
@@ -49,17 +45,15 @@ comment — before correctness, before style.
 - No `utils`, `helpers`, `common`, `shared`, `core`, `types`, `misc`. If you
   cannot name a module after what it *is*, you have not found the concept.
 - One canonical import path per item. No re-exports creating a second route.
-- Flat beats nested. One level of well-named modules is scannable; a four-level
-  tree encodes a taxonomy you will get wrong and then be too embarrassed to
-  change.
+- Flat beats nested.
 
 ## The absences
 
-The most valuable architectural rules are things that must *not* exist. They are
-invisible in the code, which is exactly why they erode. Write them down, then
-make them a test.
+The most valuable architectural rules are things that must *not* exist. They
+are invisible in the code, which is exactly why they erode. Write them down,
+then make them a test.
 
-1. The domain layer imports nothing from adapters — no transport types, no
+1. The domain layer imports nothing from adapters: no transport types, no
    framework types, no filesystem, no runtime.
 2. No module imports another module's non-`contracts` path.
 3. The module graph is acyclic.
@@ -71,78 +65,50 @@ make them a test.
    documented behaviour at the bound.
 7. Nothing outside an adapter knows the shape of a stored record, a wire
    message, or a UI framework type.
+8. No lookup by a bare local id into state that belongs to a principal. The
+   owner is part of the key.
 
-Once the codebase is large enough for these to be worth automating, they become
-a structure test over the module graph. That converts a recurring review comment
-into a red build, which is the trade you want: reviewers spend attention on
-design, machines spend it on rules.
+Once the codebase is large enough for these to be worth automating, they
+become a structure test over the module graph (see
+[testing](../../coding/references/testing.md#structure-and-placement)). That
+converts a recurring review comment into a red build: reviewers spend attention
+on design, machines spend it on rules.
 
 ## Cross-context communication
 
 Prefer publishing a fact over issuing an instruction. When one context needs
 another to act, it publishes what happened ("reply completed") rather than
-telling the other what to do ("update the transcript"). The publisher then has
-no knowledge of who reacts, and the set of reactors can change without touching
+telling the other what to do ("update the transcript"). The publisher has no
+knowledge of who reacts, and the set of reactors can change without touching
 it.
 
 Direct calls are acceptable when the relationship is genuinely a dependency
-rather than a collaboration — but **the caller defines the interface and the
-callee implements it**, so the arrow points where the design wants it, not where
-the file happens to live.
-
-## The core and what sits on it
-
-A system that lasts has a general core and product-specific capability built
-**on top of** it. The core does not learn the product's vocabulary.
-
-- The core has no conditional on a product concept, no variant named after a
-  feature, no field that only one surface sets.
-- A capability composes core pieces and adds its own rules. It may depend on the
-  core; the core may never depend on it.
-- When a capability needs something the core cannot express, the core gains a
-  *general* facility — a port, an event, a parameter naming a concept the core
-  already has — and the capability supplies the specific part. If you cannot
-  describe the addition without naming the feature, it is not general enough.
-- The test: could this core piece serve a product that does not have this
-  feature at all? If no, the contamination already happened.
-
-The pressure is always the same and always sounds reasonable: a feature needs
-one small thing from the core, and adding it there takes an hour while composing
-it on top takes a day. Take the day. What actually gets added is not a line of
-code — it is the core's knowledge that this product exists, and every subsequent
-feature gets to add one more.
+rather than a collaboration, but **the caller defines the interface and the
+callee implements it**, so the arrow points where the design wants it, not
+where the file happens to live.
 
 ## Rules for a process or bundle boundary
 
-Any seam between two runtimes — a host and a UI, a server and a client, a worker
-and a page — rots silently unless these hold.
+Any seam between two runtimes (a host and a UI, a server and a client, a
+worker and a page) rots silently unless these hold.
 
 - **One definition of every payload shape, imported by both sides.** Never
   redeclare the shape on the receiving side: the two compile happily and drift
-  until runtime. Generate one side from the other, or hand-write one declaration
-  both import.
+  until runtime. Generate one side from the other, or hand-write one
+  declaration both import.
 - **Everything crossing the seam is an explicit message**, never shared state.
-- **Guard the seam so the far side can run without the near one**, if that is a
-  supported mode. It is worth a build-matrix job, because it breaks quietly.
-- **Validate at the boundary, then trust inwards.** Parse untrusted input into a
-  domain type once, at the edge. Downstream code receives the type, not the raw
-  payload plus a promise that someone checked it.
-- **Pass the first payload in.** State the far side needs to do its first useful
-  work should arrive with it, not as a round trip afterwards.
-
-## Failure-first checklist
-
-Before writing anything that touches state, storage, the OS, or another process:
-
-- What must stay true if it stops halfway? Which function guarantees it?
-- What if it runs twice — a retry, a restart, a double input, a redelivery?
-- What if two of them run at once? Impossible by construction, serialised by one
-  owner, or a documented benign race — pick one. "Unlikely" is not one of the
-  three.
-- Is the durable write ordered before the announcement?
-- What is the bound on every queue, channel, and retry?
-- Is this failure fatal or survivable, and is that consistent with the code
-  around it? A surface that opens degraded beats a surface that does not open.
+- **Preserve the natural representation.** Bytes that are already bytes do not
+  become text and back because the convenient channel takes text. Text may be
+  the correct stable contract; accidental amplification is what to avoid.
+- **Guard the seam so the far side can run without the near one**, if that is
+  a supported mode. It is worth a build-matrix job, because it breaks quietly.
+- **Validate at the boundary, then trust inwards.** Parse untrusted input into
+  a domain type once, at the edge.
+- **Pass the first payload in.** State the far side needs to do its first
+  useful work arrives with it, not as a round trip afterwards.
+- **Authority travels with the message, not with a guessable id.** A response
+  queue, a session table, or a resource map shared across principals is keyed
+  by the principal first.
 
 ## Growing a new context
 
@@ -164,15 +130,15 @@ change.
 Keep a one-page document, read by everyone, updated rarely, containing:
 
 - The bird's-eye view of the problem.
-- A **code map** naming each module and what it owns — coarse-grained, a country
-  map not a street atlas.
+- A **code map** naming each module and what it owns: a country map, not a
+  street atlas.
 - The **invariants**, especially the absences above.
 - The **boundaries** and what crosses them.
 - The **cross-cutting concerns** and where each is implemented once.
-- A **"where do I make this change"** table. This answers the question that costs
-  new contributors the most time, which is never "how do I write this" but
-  "where does it go".
+- A **"where do I make this change"** table. This answers the question that
+  costs new contributors the most time, which is never "how do I write this"
+  but "where does it go".
 
-Name files and types without linking to line numbers, so it does not rot. Update
-it in the same change that invalidates it, or not at all — a stale map is worse
-than no map, because people trust it.
+Name files and types without linking to line numbers, so it does not rot.
+Update it in the same change that invalidates it, or not at all: a stale map
+is worse than no map, because people trust it.

@@ -27,10 +27,8 @@ getting hard to work in".
 
 ## Keeping the map current
 
-The architecture map is updated in the same change that invalidates it, or it is
-not updated at all. A stale map is worse than no map, because people trust it.
-When a change adds a module, moves a boundary, or breaks an absence, the map
-moves with it or the change is not done.
-
-For how an individual change should be sized, described, and reviewed, see the
-[`pull-requests`](../../pull-requests/SKILL.md) skill.
+The architecture map moves in the same change that invalidates it, or the
+change is not done; the rule and the map's shape are in
+[structure](structure.md#an-architecture-map). How an individual change is
+sized, described, and reviewed is owned by
+[`pull-requests`](../../pull-requests/SKILL.md).
