@@ -1,6 +1,6 @@
 ---
 name: system-architect
-description: "How to design and structure a codebase so the next change stays cheap: information ownership, bounded contexts and stable boundaries, separating mechanism from policy, a small core with product capability composed on top, invariants and failure first, and why product velocity is a structural property. Domain-driven and opinionated on purpose. Use before writing a new module, before adding a dependency between two parts of a system, when a change starts touching more files than it should, when boundaries or layering are being discussed, or when reviewing anything that spans more than one file."
+description: "How to design and structure a codebase so the next change stays cheap: information ownership, bounded contexts and stable boundaries, separating mechanism from policy, a small core with product capability composed on top, invariants and failure first, authority-shaped state, and why product velocity is a structural property. Domain-driven and opinionated on purpose. Use before writing a new module, before adding a dependency between two parts of a system, when a change starts touching more files than it should, when boundaries or layering are being discussed, or when reviewing anything that spans more than one file."
 ---
 
 # The System Architect
@@ -15,9 +15,13 @@ feature costs four times what the first one cost, because nobody can tell where
 a behaviour lives, because two modules learned each other's secrets and now
 neither can move. Performance and scale are outcomes of a system you can still
 reason about at 2am. Product velocity is the same outcome measured with a
-different instrument.
+different instrument. So: **the structure of the code is a product decision.**
 
-So: **the structure of the code is a product decision.** You treat it as one.
+This file owns the design layer. The working method for a single change is in
+[`coding`](../coding/SKILL.md), test rules in
+[testing](../coding/references/testing.md), and how a change is described and
+reviewed in [`pull-requests`](../pull-requests/SKILL.md). Where a section here
+points there, the pointer is the rule.
 
 ---
 
@@ -26,48 +30,42 @@ So: **the structure of the code is a product decision.** You treat it as one.
 > Build the smallest system where each piece has a clear reason to exist, owns
 > the information it needs, and can evolve independently.
 
-Operationally that means: **optimise for the cost of the *next* change, not the
-elegance of *this* one.** You judge an abstraction not by how neat it is today
-but by how expensive it makes a future *correct* change — and the corollary is
-that you do not build flexibility until a real requirement forces it, because
-speculative flexibility is a bet you pay for daily and usually lose.
+Operationally: **optimise for the cost of the *next* change, not the elegance
+of *this* one.** Judge an abstraction by how expensive it makes a future
+*correct* change. The corollary is that you do not build flexibility until a
+real requirement forces it, because speculative flexibility is a bet you pay
+for daily and usually lose.
 
 Three consequences you accept without arguing:
 
-1. **Code that is easy to delete beats code that is easy to extend.** An
-   extension point you guessed wrong is more expensive than the duplication you
-   were avoiding. If you cannot describe how a piece of code gets deleted, you
-   do not yet understand its boundary.
+1. **Code that is easy to delete beats code that is easy to extend.** If you
+   cannot describe how a piece of code gets deleted, you do not yet understand
+   its boundary.
 2. **Boring is a feature.** Choose the well-understood mechanism over the
-   optimal one unless you have measured that the optimal one is required. Every
-   novel mechanism spends a budget you would rather spend on the product.
-3. **Local reasoning is the scarce resource.** A reader should be able to
-   understand one file, or one module, without holding the rest of the system in
-   their head. Anything that forces global reasoning — implicit ordering, shared
-   mutable state, action-at-a-distance, "you also have to update X" — is a
-   defect even when it works.
+   optimal one unless you have measured that the optimal one is required.
+3. **Local reasoning is the scarce resource.** A reader should understand one
+   file without holding the rest of the system in their head. Anything that
+   forces global reasoning (implicit ordering, shared mutable state,
+   action-at-a-distance, "you also have to update X") is a defect even when it
+   works.
 
 ### The pillars
-
-Everything below is one of these, applied. When you are stuck, the question is
-usually which pillar the situation is violating.
 
 | | Pillar | In short | Where |
 | --- | --- | --- | --- |
 | 1 | **Information ownership** | Responsibility belongs where the information is. | §2, §4 |
 | 2 | **Stable boundaries** | Components meet through minimal contracts and know as little about each other as possible. | §3, §7 |
 | 3 | **The three separations** | Mechanism from policy, what from how, definition from execution. | §5 |
-| 4 | **Small core, composable pieces** | Keep the kernel tiny; extend through clean interfaces, not by growing the middle. | §6 |
+| 4 | **Small core, composable pieces** | Keep the kernel tiny; extend through interfaces, not by growing the middle. | §6 |
 | 5 | **Vertical isolation** | Product-specific capability sits *on top of* the core, never inside it. | §8 |
 | 6 | **Failure and invariants first** | Design around what stays true when things crash, retry, duplicate, or race. | §9 |
 | 7 | **No speculative abstraction** | Flexibility is bought when a requirement forces it, not before. | §1, §10 |
 | 8 | **Design for change** | Judge an abstraction by the cost of the next correct change. | §1, §12 |
 
-Two things hold the pillars up and are easy to forget because they are not
-structural. **Language:** a name that does not match the word the product uses
-will cost you more than any of the above, because every conversation pays a
-translation tax (§3). **Enforcement:** a pillar with no test and no review
-comment is decoration (§11, §15).
+Two things hold the pillars up and are not structural. **Language:** a name
+that does not match the product's word costs more than any of the above,
+because every conversation pays a translation tax (§3). **Enforcement:** a
+pillar with no test and no review comment is decoration (§11, §15).
 
 ---
 
@@ -78,27 +76,32 @@ answers it.
 
 1. **Who has the information needed to decide this?** Put the responsibility
    there. Not where it is convenient to call from, not where the code already
-   is — where the knowledge lives. Most bad designs are a decision made in a
-   place that had to be *told* things in order to make it, and every one of
-   those tellings is a parameter, a coupling, and a future migration. If a
-   caller has to pass in three facts so the callee can branch, the branch
-   belongs to the caller. If the callee knows something the caller had to guess,
-   the decision belongs to the callee.
-2. **What is the domain concept?** Name it in the language the product uses. If
-   you cannot name it without inventing a word, you have not found the concept
-   yet — go find it before you write a type.
+   is. Most bad designs are a decision made in a place that had to be *told*
+   things to make it, and every telling is a parameter, a coupling, and a
+   future migration. If a caller passes three facts so the callee can branch,
+   the branch belongs to the caller. If the callee knows something the caller
+   had to guess, the decision belongs to the callee. The one thing that never
+   moves to the caller is a check another thread can invalidate: the state
+   owner decides and acts under one protection.
+2. **What is the domain concept?** Name it in the product's language. If you
+   cannot name it without inventing a word, you have not found it yet.
 3. **Which boundary does it belong inside?** Every concept lives in exactly one
-   context that owns it. If it seems to belong to two, it is probably two
-   different concepts that share a word.
-4. **What is the invariant?** What must always be true? Who enforces it? An
+   context. If it seems to belong to two, it is probably two concepts sharing
+   a word.
+4. **What is the invariant?** What must always be true, and who enforces it? An
    invariant with no enforcer is a bug scheduled for later.
-5. **What is the smallest thing that makes it true?** Write that. Not the
+5. **Which owner knows enough to choose the strategy?** A mechanism normally
+   embodies one selected strategy. The choice among native, polling, remote,
+   or fake belongs at the owner that knows the environment and policy facts,
+   usually the composition edge. A mechanism owns all the strategies and the
+   selection only when switching at runtime is itself its job.
+6. **What is the smallest thing that makes it true?** Write that. Not the
    framework for a family of things like it.
-6. **How does it get deleted?** If the answer involves more than the module it
+7. **How does it get deleted?** If the answer involves more than the module it
    lives in plus one adapter, the boundary is wrong.
-7. **What does it cost to be wrong?** Cheap-to-reverse decisions get made in
-   the pull request. Expensive-to-reverse decisions get a short written note
-   first (see §14).
+8. **What does it cost to be wrong?** Cheap-to-reverse decisions get made in
+   the pull request. Expensive-to-reverse decisions get a written note first
+   (§14).
 
 You do not skip steps 1 and 2. A responsibility placed away from its
 information, or a structure that does not track the domain, will be fought by
@@ -106,236 +109,164 @@ every feature request, forever.
 
 ---
 
-## 3. Domain first: the strategic layer
+## 3. Domain first
 
 **Ubiquitous language.** The words in the code are the words the product uses,
 with no translation layer in anyone's head. If product says "turn" and code says
-`MessagePair`, one of them is wrong and you fix it in code. Renaming is cheap.
-Living with a mistranslation for a year is not.
+`MessagePair`, one of them is wrong and you fix it in code.
 
 **Bounded contexts.** Split the system by *meaning*, not by technical kind. A
-context is a region inside which one word means exactly one thing. The same word
-may legitimately mean something different in another context — that is not
-duplication to eliminate, it is the point. Two contexts sharing a definition
-because "it's the same struct" is how you get a change in one feature breaking
-another.
+context is a region inside which one word means exactly one thing. The same
+word may legitimately mean something different in another context; that is not
+duplication to eliminate, it is the point.
 
-Signals that you are looking at a real boundary:
+Signals that you are looking at a real boundary: the vocabulary changes when
+you cross it; the rate of change differs on each side; different people or
+reasons drive changes on each side; you could rewrite one side without
+touching the other.
 
-- The vocabulary changes when you cross it.
-- The rate of change differs on each side.
-- Different people, or different reasons, drive changes on each side.
-- You could plausibly rewrite one side without touching the other.
+Signals that a boundary is fake: it is named after a technical layer (`utils`,
+`helpers`, `common`, `types`, `services`, `managers`); every feature touches
+both sides; the interface between them is "pass the whole state object".
 
-Signals that a "boundary" is fake:
-
-- It is named after a technical layer (`utils`, `helpers`, `common`, `types`,
-  `services`, `managers`).
-- Every feature touches both sides.
-- The interface between them is "pass the whole state object".
-
-**The context map.** Write down, in one page, every context and the direction of
-every relationship between them. Direction matters more than existence: A knows
-about B, or B knows about A, never both. If the map has a cycle, the cycle is
-the next thing you fix.
+**The context map.** One page: every context and the direction of every
+relationship. Direction matters more than existence: A knows about B, or B
+knows about A, never both. If the map has a cycle, the cycle is the next thing
+you fix.
 
 **Shared kernel is a debt instrument.** Anything shared by two contexts is
-jointly owned and therefore hard to change. Keep the shared set to: primitive
-value types, and contracts that are deliberately versioned. Never share an
-entity. Never share "the model".
+jointly owned and therefore hard to change. Keep the shared set to primitive
+value types and deliberately versioned contracts. Never share an entity. Never
+share "the model".
 
 ---
 
 ## 4. Tactical rules inside a context
 
-**Aggregates.** An aggregate is a consistency boundary: a small cluster of
-objects that must be changed together, atomically, or the invariant breaks.
+**Aggregates.** A consistency boundary: the small cluster of objects that must
+change together, atomically, or the invariant breaks. Keep them small (one
+entity plus its value objects); reference other aggregates by identity only;
+one aggregate per transaction, with anything spanning two declared eventually
+consistent. If a rule genuinely spans aggregates, either the boundary is wrong
+or the rule is a policy, and policies live in the application layer.
 
-- Make aggregates **small**. The default is one entity plus its value objects.
-  A large aggregate is a contention point and a merge conflict generator.
-- **Reference other aggregates by identity only** — hold an id, not a pointer.
-  If you cannot reach it, you cannot accidentally modify it in the same
-  transaction, and the temptation never arises.
-- **One aggregate per transaction.** Anything spanning two aggregates is
-  eventually consistent, and you say so explicitly rather than discovering it in
-  production.
-- If a rule genuinely spans aggregates, either the boundary is wrong or the rule
-  is not really an invariant — it is a policy, and policies live in the
-  application layer.
+**Value objects over primitives.** A string that is really a session id, an
+integer that is really a duration: wrap them. Primitive obsession lets you pass
+the wrong thing to the right slot with no complaint from the compiler or the
+reviewer.
 
-**Value objects over primitives.** A `String` that is really a session id, a
-`u32` that is really a millisecond duration, an `f64` that is really a screen
-point — wrap them. Primitive obsession is the cheapest bug factory there is: it
-lets you pass the wrong thing to the right slot and get no complaint from the
-compiler or the reviewer.
-
-**Put the rule where the data is.** An object that holds the state enforces the
-rules about that state. When a caller has to check something before calling —
-"only call this if the turn is still streaming" — that check has been placed
-away from the information it depends on, and it will be forgotten at the fourth
-call site. Give the callee the decision, and give it a return type that says
+**Put the rule where the data is.** When a caller has to check something
+before calling ("only call this if the turn is still streaming"), the check has
+been placed away from the information it depends on and will be forgotten at
+the fourth call site. Give the callee the decision and a return type that says
 what happened.
 
 **Invariants live in constructors, not in callers.** If a field can hold any
-value without breaking anything, expose it. If it cannot, make it private,
-document the invariant, and enforce it in the one function that can create the
-type. Then the invariant is *local*: you verify it by reading one file.
+value, expose it. If it cannot, make it private, document the invariant, and
+enforce it in the one function that can create the type. Then the invariant is
+verified by reading one file.
 
-**Rich domain, thin application.** Business rules live in the domain objects
-that own them. The application layer orchestrates — it loads, calls, saves,
-publishes. When application code starts making decisions with `if`s about
-domain state, that decision belongs in the domain.
+**Rich domain, thin application.** Business rules live in the objects that own
+them. The application layer loads, calls, saves, publishes. When application
+code starts making decisions with `if`s about domain state, that decision
+belongs in the domain.
 
 **Persistence ignorance.** The domain does not know about storage, transport,
-the window system, or the UI framework. Not because purity is virtuous, but
-because those are the parts most likely to be replaced, and you do not want the
-replacement to reach into your rules.
+the window system, or the UI framework, because those are the parts most
+likely to be replaced.
 
 ---
 
 ## 5. The three separations
 
-One move, applied at three altitudes. Learn it once; you will see it everywhere.
+One move, applied at three altitudes.
 
-**Mechanism from policy.** The reusable machinery does not contain the rules.
-A scheduler knows how to run things, not which things deserve priority. A
-retrier knows how to retry, not what is worth retrying. Mechanism is the part
-you write once and stop thinking about; policy is the part the product changes
-every week. Fuse them and every product change becomes an edit to
-infrastructure, which is the single most reliable way to make a codebase slow.
-
-The test: *can I change this rule without touching the machinery, and can I
-reuse the machinery under a different rule?* If either answer is no, they are
-fused.
+**Mechanism from policy.** The reusable machinery does not contain the rules. A
+scheduler knows how to run things, not which deserve priority; a retrier knows
+how to retry, not what is worth retrying. Fuse them and every product change
+becomes an edit to infrastructure. The test: *can I change this rule without
+touching the machinery, and reuse the machinery under a different rule?*
 
 **What from how.** Callers express intent; the system chooses execution.
 "Deliver this reply" is a what; "spawn a task, poll every 50ms, retry three
 times" is a how. Intent stated declaratively survives a change of execution
-strategy; intent expressed as a procedure has to be rewritten when the strategy
-changes, in every place it was expressed. Push the *what* up to the caller and
-keep the *how* down in one implementation — this is the same instinct as pushing
-conditionals up and loops down (§10).
+strategy; intent expressed as a procedure has to be rewritten everywhere it was
+expressed.
 
 **Definition from execution.** The description of a thing is a separate,
 inspectable value from the state of running it. A workflow definition is data;
-a workflow run is state. A configuration is data; the configured session is
-state. Keeping them apart is what makes it possible to inspect, serialise,
-diff, version, test, and replay — and to answer "what was supposed to happen"
-separately from "what is happening". When definition and execution are the same
-object, you cannot examine one without disturbing the other, and you cannot
-change the definition of a thing already running.
+a run is state. Keeping them apart is what makes it possible to inspect,
+serialise, diff, version, test, and replay, and to change the definition of a
+thing already running.
 
-The three compound: definitions are *what*, the engine that runs them is *how*,
-and the engine is mechanism while the definitions are policy. A system that gets
-all three right is one where the interesting part is data and the machinery is
-small and dull — which is exactly the shape you are aiming at.
+The three compound: definitions are what, the engine is how, and the engine is
+mechanism while the definitions are policy. A system that gets all three right
+is one where the interesting part is data and the machinery is small and dull.
 
 ---
 
 ## 6. Small core, composable pieces
 
-Keep the kernel tiny. Everything that can live outside it, does.
-
 The core is whatever every part of the system depends on. It is therefore the
-most expensive thing in the codebase to change, and its size is a direct
-multiplier on the cost of every future decision. A large core is not a rich
-foundation; it is a large surface that nothing can move without permission from.
+most expensive thing to change, and its size multiplies the cost of every
+future decision.
 
 - **A thing joins the core only when at least two independent consumers need it
-  and it has no plausible home outside.** One consumer means it belongs to that
-  consumer.
-- **Extend by adding a piece, not by widening the middle.** If a new capability
-  requires a new parameter on a core type, an extra branch in a core function,
-  or a flag threaded through, stop: that is the core absorbing a concern that
-  should have been composed on top.
-- **Prefer several small pieces with one job over one piece with a mode
-  switch.** Two functions beat one function with a boolean. Two adapters beat
-  one adapter with an `if`.
+  and it has no plausible home outside.**
+- **Extend by adding a piece, not by widening the middle.** A new parameter on
+  a core type, an extra branch in a core function, or a flag threaded through
+  is the core absorbing a concern that should have been composed on top.
+- **Several small pieces with one job beat one piece with a mode switch.** Two
+  functions beat one with a boolean.
 - **One exception: a switch that contains the risk of replacing a mechanism.**
-  Swapping a scheduler, a queue, or a storage engine is where being able to turn
-  the new one off is worth a mode. That is a rollout seam, not configurability,
-  and it carries an owner, contract parity between both paths, CI on both, a
-  rollback procedure, and a written criterion for deleting it. Say whether
-  selection happens only at startup: a live toggle needs a drain protocol, and a
-  config flag does not give you one. A replacement too coupled to be made
-  optional is a replacement that cannot be rolled back at three in the morning.
+  Swapping a scheduler, a queue, or a storage engine is where being able to
+  turn the new one off is worth a mode. That is a rollout seam, not
+  configurability, and it carries an owner, contract parity between both
+  paths, CI on both, a rollback procedure, and a written criterion for
+  deleting it. Say whether selection happens only at startup: a live toggle
+  needs a drain protocol. A replacement too coupled to be made optional is one
+  that cannot be rolled back at three in the morning.
 - **Composition happens at the edge**, in the one place that wires concrete
-  things together. The pieces themselves know nothing about who else exists.
+  things together. The pieces know nothing about who else exists. The
+  migration tactic for a core that has leaked an implementation choice is in
+  [patterns](references/patterns.md#structure).
 
-The measure of the core is not lines. It is: *how many things must I understand
-before I can write anything at all?* Keep that number small and everything
-downstream gets cheaper — onboarding, review, testing, and parallel work.
+The measure of the core is not lines. It is: *how many things must I
+understand before I can write anything at all?*
 
 ---
 
-## 7. Structure: how the files are arranged
+## 7. Structure
 
-**Flat beats nested.** One level of modules, named exactly what they are. A deep
-tree encodes a taxonomy you will get wrong and then be too embarrassed to
-change. A flat list of twenty named modules is scannable; a four-level tree is
-not.
+**Flat beats nested.** One level of modules, named exactly what they are. A
+deep tree encodes a taxonomy you will get wrong and then be too embarrassed to
+change.
 
-**The folder name is the module name is the concept name.** No exceptions, no
-aliases, no re-exports that create a second path to the same thing. One name,
-one location, one import path — so that search finds everything and renames are
-mechanical.
+**The folder name is the module name is the concept name.** No aliases, no
+re-exports creating a second path. One name, one location, one import path.
 
-**Dependencies point in one direction, always.**
+**Dependencies point in one direction, always.** Adapters depend on the
+application; the application depends on the domain; the arrow never reverses.
+The application declares the *port* it needs and an adapter satisfies it. This
+is what lets you test the middle without booting the edges and swap an edge
+without renegotiating the middle.
 
-```
-        adapters  ──────►  application  ──────►  domain
-     (ui, storage,          (use cases,          (rules,
-      os, network)           orchestration)       invariants)
-```
-
-The arrow never reverses. The domain does not import the application. The
-application does not import an adapter — it declares the *port* it needs and an
-adapter satisfies it. This is not ceremony: it is what lets you test the middle
-of the system without booting the edges, and swap an edge without renegotiating
-the middle.
-
-**Inside a context, the shape repeats.** Every module looks the same, so you
-never have to learn a new layout:
-
-```
-<context>/
-  domain/          rules, entities, value objects, domain events. No imports outward.
-  application/     use cases, command/query handlers, ports (interfaces). Imports domain only.
-  adapters/        implementations of ports: storage, IPC, OS, HTTP, UI bindings.
-  contracts/       the events and DTOs other contexts are allowed to see. Public.
-```
-
-Everything except `contracts/` is private to the module. Other modules import
-`contracts/` and nothing else. This is the single most valuable rule in this
-document, because it is the one that keeps a change to one feature from becoming
-a change to five.
-
-**Contexts talk through contracts, not calls.** Prefer publishing a domain event
-that another context subscribes to over reaching across and invoking it. Direct
-cross-context calls create a compile-time knot; events create a versioned seam
-you can evolve. When you must call directly, call through a port the caller
-defines, so the dependency points where you want it, not where the other module
-happens to live.
+**Contexts talk through contracts, not calls.** Prefer publishing a domain
+event to reaching across and invoking. When you must call directly, call
+through a port the caller defines, so the dependency points where you want it.
 
 **State the invariants as absences.** The most useful architectural rules are
-things that must *not* exist. Write them down where people will read them:
+things that must *not* exist: no domain import from adapters, no import of
+another module's non-contract path, no cycle, no `utils`, no ambient
+singleton. Absences are invisible in the code and erode silently, which is why
+each one is worth a test.
 
-- The domain layer imports nothing from adapters, ever.
-- No module imports another module's non-`contracts` path.
-- There are no cycles in the module graph.
-- Nothing outside an adapter knows the shape of a stored record, a wire message,
-  or a UI framework type.
-- There is no `utils`, `common`, `helpers`, `shared`, or `core` module.
-- There is no global mutable state, no service locator, no ambient singleton.
-  Dependencies arrive as parameters, first parameter, not last.
+**Cross-cutting concerns get one implementation, applied at the boundary.**
+When a concern appears at the top of every function, it belongs one level up.
 
-Absences are invisible in the code and therefore erode silently. If a rule is
-worth having, it is worth a test that fails when it breaks (see §11).
-
-**Cross-cutting concerns get one implementation, applied uniformly.** Logging,
-validation, transactions, correlation ids, retry — decorate at the boundary
-rather than sprinkling into every handler. When a concern appears at the top of
-every function, that is a signal it belongs one level up.
+The concrete layout, the full list of absences, the rules for a process
+boundary, and how to grow a new context are in
+[structure](references/structure.md).
 
 ---
 
@@ -344,106 +275,89 @@ every function, that is a signal it belongs one level up.
 Product-specific capability is built **on top of** the general core, never
 inside it. The core does not learn the product's vocabulary.
 
-This is the pillar that decides whether a system is still generalisable in a
-year. The pressure is always the same and always reasonable-sounding: a feature
-needs one small thing from the core, and adding it there takes an hour while
-composing it on top takes a day. Take the day. The hour is borrowed at a rate
-you cannot see, because what actually gets added is not a line of code — it is
-the core's knowledge that this product exists, and every subsequent feature
-gets to add one more.
+The pressure is always the same and always sounds reasonable: a feature needs
+one small thing from the core, and adding it there takes an hour while
+composing it on top takes a day. Take the day. What actually gets added is not
+a line of code; it is the core's knowledge that this product exists, and every
+subsequent feature gets to add one more.
 
-Concretely:
+- The core has no `if` on a product concept, no variant named after a feature,
+  no field that only one surface sets.
+- A capability composes core pieces and adds its own rules. It may depend on
+  the core; the core may never depend on it.
+- When a feature needs something the core cannot express, the core gains a
+  *general* facility (a hook, a port, a parameter naming a concept the core
+  already has) and the feature supplies the specific part. If you cannot
+  describe the addition without naming the feature, it is not general enough.
+- The tell: could this core piece serve a product that does not have this
+  feature at all? If not, the contamination already happened.
 
-- The core has no `if` on a product concept, no enum variant named after a
-  feature, no field that only one surface sets.
-- A product capability composes core pieces and adds its own rules. It may
-  depend on the core; the core may never depend on it.
-- When a feature genuinely needs something the core cannot express, the core
-  gains a *general* capability — a hook, a port, a parameter that names a
-  concept the core already has — and the feature supplies the specific part.
-  If you cannot describe the addition without naming the feature, it is not
-  general enough yet.
-- The tell: could this core piece be used by a product that does not have this
-  feature at all? If no, the contamination already happened.
-
-The same discipline runs vertically inside the app: a shared surface does not
-special-case one caller. The moment it does, the special case has become
-everyone's problem to preserve.
+The same discipline runs inside the app: a shared surface does not special-case
+one caller.
 
 ---
 
 ## 9. Failure and invariants first
 
-Design for the crash, the retry, the duplicate, and the race **before** you
-design the happy path. The happy path is the easy half and it will be fine; the
-system's real shape is determined by what happens when it is interrupted.
+Design for the crash, the retry, the duplicate, and the race **before** the
+happy path. The system's real shape is determined by what happens when it is
+interrupted. For anything touching state, storage, or another process, three
+questions decide the design:
 
-For anything that touches state, storage, or another process, answer these
-before writing it:
+- **What must remain true if this stops halfway?** Name the invariant, find the
+  point where it can be violated, and make that point atomic, or make the
+  violation detectable and repairable rather than silent.
+- **What happens if this runs twice?** Retries, restarts, double-clicks, and
+  redelivery are the same event. Prefer operations safe to repeat; otherwise
+  make repetition detectable by identity.
+- **What happens if two run at once?** Impossible by construction, serialised
+  by one owner, or a documented benign race. "Unlikely" is not one of the
+  three.
 
-- **What must remain true if this stops halfway?** Name the invariant. Then find
-  the point in the code where it can be violated, and make that point atomic —
-  or make the violation detectable and repairable rather than silent.
-- **What happens if this runs twice?** Assume it will. Retries, restarts,
-  double-clicks, and redelivery are all the same event. Prefer operations that
-  are safe to repeat; where you cannot, make repetition detectable by identity
-  rather than by guessing from state.
-- **What happens if these two run at once?** Either it is impossible by
-  construction, or there is one owner serialising it, or there is a documented
-  race that is genuinely benign. "Unlikely" is not one of the three.
-- **What is the order-of-operations rule?** Write the durable fact before you
-  announce it. Announce before you act on it. A system that acts first and
-  records after is a system that loses work exactly when it matters.
-- **Where is the bound?** Every queue, buffer, channel, and retry loop has a
-  limit and a stated behaviour at the limit. Unbounded means "fails later, worse,
-  and somewhere else".
-- **How does it degrade?** Decide which failures are fatal and which are
-  survivable, and be consistent. A surface that opens degraded beats a surface
-  that does not open. A write that silently half-succeeded is worse than one
-  that failed loudly.
+The operational checklist that follows from these (sentinels, reservations,
+bounds, cleanup, ordering, degradation) is owned by
+[`coding`](../coding/SKILL.md#3-failure-first). The structural habits are
+these:
 
-Three habits that follow:
+**Make illegal states unrepresentable before making them unreachable.** A type
+that cannot express the broken state removes a class of failure from review,
+testing, and memory. Cheaper than any amount of validation.
+
+**Every invariant has a named enforcer.** If you cannot point at the function
+that guarantees it, it is a hope, and hopes do not survive concurrency.
 
 **Restructure until the guarantee is provable.** The strongest version of an
 invariant is not "we tested it" but "here is the argument that it cannot be
 violated". If a documented guarantee cannot be argued from the code in a
-paragraph, it will quietly stop being true — and nobody will notice, because
-nothing fails. Changing the code so the argument becomes possible is legitimate
-work on its own, with no bug attached.
+paragraph, it will quietly stop being true. Changing the code so the argument
+becomes possible is legitimate work with no bug attached. And a guarantee the
+implementation already provides but nobody has stated is one the next refactor
+discards without noticing: state it, and pin it with a test.
 
-**An escape hatch is a symptom.** When the answer to a design flaw is "there's a
-flag to turn it off", the flaw is still there and has grown a configuration
-surface. Worse, the flag only helps people who already know they need it — which
-is nobody, until they have hit the problem in production. Track such flags as
-debt to be removed by fixing the design.
+**Authority shapes state before local identity.** When state belongs to a
+principal (a tenant, a session, a window, a user, a plugin), the owner is part
+of the storage key before the local id, or the aggregate is typed by owner, so
+cross-owner access is an unavailable lookup rather than a convention callers
+must remember. A guessed id must not be able to select someone else's state. An
+unguessable capability token may deliberately combine identity and authority;
+then its entropy, leakage, revocation, and lifetime are explicit invariants,
+not a substitute for an owner the system already knows. Once the structure
+enforces isolation, delete the security machinery it made redundant.
 
-The distinction is what the flag hides. Covering a design flaw, it is debt;
-covering the *rollout* of a mechanism replacement, it is a seam with a removal
-date (§6). Reject the flag that buys flexibility nobody asked for; keep the one
-that buys reversibility.
+**Migrations are a semantic dependency graph.** A later migration depends on
+durable facts, not on an intermediate shape an earlier migration happened to
+introduce. Before changing or deleting migration N, search every later one for
+fields, values, and sentinels N introduced. Keep a current-format no-op fixture
+and representative legacy fixtures.
 
-Two more habits:
-
-**One state, one representation.** A sentinel that means two things — a null
-standing for both "never looked up" and "looked up and found nothing", a counter
-shared by two independent activities — will eventually be read as the wrong one,
-and the case where it matters is always a retry or a restart. Give each state its
-own representation before you need to tell them apart.
-
-**Cleanup must be structural, not remembered.** Whenever you attach something to
-a lifetime you do not control — a listener, a subscription, a registration — the
-removal has to be tied to a scope, a guard, or a lifetime token, never to a
-teardown call someone must make on every exit path. The path that gets forgotten
-is the successful one, and the symptom is that finished work stays reachable
-forever.
-
-**Make illegal states unrepresentable before making them unreachable.** A type
-that cannot express the broken state removes a whole class of failure from
-review, testing, and your memory. This is cheaper than any amount of validation.
-
-**Every invariant has a named enforcer.** If you cannot point at the function
-that guarantees it, it is not an invariant — it is a hope, and hopes do not
-survive concurrency.
+**An escape hatch is a symptom.** When the answer to a design flaw is "there is
+a flag to turn it off", the flaw is still there and has grown a configuration
+surface, and the flag only helps people who already know they need it, which is
+nobody until they have been hurt. Track such flags as debt. The distinction is
+what the flag hides: covering a design flaw, it is debt; covering the *rollout*
+of a mechanism replacement, it is a seam with a removal date (§6). Reject the
+flag that buys flexibility nobody asked for; keep the one that buys
+reversibility.
 
 ---
 
@@ -451,263 +365,158 @@ survive concurrency.
 
 Say no to these even when they feel productive:
 
-- **A single-use abstraction.** A block, a local, or a comment is a cheaper
-  abstraction than a function or a trait. Extract on the second use, not the
-  first, and only when the two uses are genuinely the same idea rather than
-  coincidentally the same code.
-- **Configurability you were not asked for.** Every flag doubles the state space
-  and halves the confidence of every test. A parameter with one caller is a
-  constant that hasn't admitted it yet.
+- **A single-use abstraction.** Extract on the second use, not the first, and
+  only when the two uses are the same idea.
+- **Configurability you were not asked for.** Every flag doubles the state
+  space and halves the confidence of every test.
 - **A generic solution to a specific problem.** Generality is bought with
   reasoning cost, paid daily, by everyone.
-- **A layer that only forwards.** If a class exists to call one method on the
-  next class down, delete it. Layers earn their place by holding a rule or
+- **A layer that only forwards.** Layers earn their place by holding a rule or
   flipping a dependency direction, not by existing.
-- **Hidden control flow.** Push conditionals *up* toward the caller, push loops
-  *down* into the callee. A function that sometimes does nothing depending on
-  global state is impossible to reason about locally.
-- **Speculative performance work.** Measure first. An optimisation you cannot
-  attribute to a measurement is a complexity purchase with no receipt.
-- **Reaching into another module because it is faster right now.** This is the
-  one that actually kills velocity. It is never one line; it is a promise you
-  are making on behalf of everyone who touches either module afterwards.
+- **Hidden control flow.** A function that sometimes does nothing depending on
+  global state cannot be reasoned about locally.
+- **Speculative performance work.** An optimisation you cannot attribute to a
+  measurement is a complexity purchase with no receipt.
+- **A dependency without a memory.** A dependency is a policy decision. Before
+  adding one, ask whether it was removed before and why; the in-house
+  equivalent is often smaller.
+- **Reaching into another module because it is faster right now.** Never one
+  line; a promise made on behalf of everyone who touches either module
+  afterwards.
 
 ---
 
 ## 11. Tests are a design instrument
 
-Tests are not a quality ritual. They are the fastest feedback you have on
-whether the structure is right. Code that is hard to test is not "hard to test";
-it is badly coupled, and the test is telling you so.
+Tests are the fastest feedback you have on whether the structure is right.
+Code that is hard to test is badly coupled, and the test is telling you so.
+Two structural consequences:
 
-**Test through the public surface.** Never open a private door to test — no
-"internals visible for testing", no test-only constructors that build states the
-production code cannot build. If you cannot reach a state through the real API,
-that state should not exist. The one legitimate exception is an interleaving or
-an unsafe representation that no public entry point can drive to the failure: a
-module-local model test is the only instrument that reaches it, and it still
-does not justify making anything `pub`.
+**Match the test to the risk, not to the layer.** A domain rule gets a fast
+unit test with real objects; a use case gets an integration test against the
+real dependency; a contract between modules gets a consumer-owned test on the
+shape; an architectural absence gets a structure test over the module graph;
+anything concurrent or timed gets a deterministic seam.
 
-**Match the test to the risk, not to the layer.**
+**A seam is a design decision, so make it where the unpredictable enters.**
+Route time, randomness, the filesystem, the network, and concurrency primitives
+through one internal module each, so determinism is a build configuration
+rather than a refactor. Fake the lowest external mechanism, never your own
+orchestration; if the fake contains a second coordinator, the seam is too high.
 
-| What you are protecting | How you test it |
-| --- | --- |
-| A domain rule or invariant | Fast unit test, real objects, no doubles |
-| A use case wired to real infrastructure | Integration test against the *real* dependency, not a mock of it |
-| A contract between two modules | Contract test on the event/DTO shape, owned by the consumer |
-| An architectural absence (§7) | Automated structure test over the module graph |
-| Anything concurrent, timed, or async | A deterministic seam — inject the clock, the scheduler, the channel |
-| A bug you just fixed | A regression test that fails on the old code |
-
-**Mock only what you do not own.** Doubles for your own domain objects test your
-mocks. Doubles for a third-party edge you cannot run locally are legitimate.
-Everything in between: use the real thing.
-
-**Determinism is non-negotiable.** Time, randomness, concurrency, and I/O
-ordering are injected, never ambient. A flaky test is worse than no test: it
-trains the team to ignore red, which is the actual failure. When a test must
-wait on an asynchronous outcome, poll a condition with a timeout — never sleep a
-fixed duration and hope.
-
-**Every change carries its test.** A change either adds behaviour or fixes
-broken behaviour. Both cases have a test that would have failed before. If you
-cannot write one, say so in the pull request and say why, out loud.
-
-**Record performance facts in test baselines.** The cheapest defence against
-performance regressions is to write the relevant counters into the recorded
-output of the test suite, rounded coarsely enough that ordinary noise produces no
-diff. The regression then arrives in review as a text diff beside the behavioural
-changes, seen by the same person in the same pass — rather than in a dashboard
-nobody opens.
-
-**Tests are a discovery instrument, and what they discover gets filed.** Writing
-tests for an untested area will surface things that look like bugs. File each one
-separately. Do not fix them inside the test change: the test change stays
-reviewable, and each bug gets its own discussion, fix, and regression test.
-
-**Pin stated semantics with tests.** When you document a subtle behaviour — an
-edge case, an ordering, what a caller sees after a failure — add the test that
-fails if the documentation stops being true. Prose drifts silently; an assertion
-does not. A change that is only documentation plus the tests that hold it is a
-legitimate and valuable change.
-
-**Do not test the implementation.** A test that breaks when you rename a private
-method is a tax on refactoring — the exact activity you most want to be free.
+The rules themselves, what gets a test, and what does not, are in
+[testing](../coding/references/testing.md).
 
 ---
 
 ## 12. Velocity is a structural property
 
 Velocity is not typing speed. It is the number of changes that can be made
-independently, in parallel, without coordination. You engineer for it directly:
+independently, in parallel, without coordination. You engineer for it
+directly:
 
-- **Small changes, merged fast.** Review quality collapses past a couple of
-  hundred changed lines. Three small pull requests beat one large one even when
-  the total work is identical — the feedback arrives while it is still cheap to
-  act on.
-- **One reason per change.** A change that mixes a refactor with a behaviour
-  change cannot be reviewed, reverted, or bisected. Split them: refactor first,
-  behave second, or the reverse — never both in one commit.
-- **Never break the main branch.** The default branch is always shippable. Work
-  happens on branches; the branch is the unit of experiment.
-- **Cost of a change ≈ number of modules it touches.** When a routine feature
-  touches four modules, look at the boundary before congratulating yourself on
-  the big feature — but subtract moves, generated files, and formatting first,
-  and confirm the four are really four *decisions*. The count is the prompt to
-  investigate; the coupling you find is the verdict.
-- **Make the common change a one-file change.** Look at the last ten changes.
-  For each, ask how many files it *should* have touched. The gap between should
-  and did is your architectural debt, measured honestly.
-- **Land big features as inert infrastructure first.** The first change adds the
-  types, the wiring, and the gate, and *does nothing* — it cannot affect existing
-  behaviour, which makes it reviewable on structure alone and revertible for
-  free. Capability comes one increment at a time afterwards. A single change that
-  both builds machinery and uses it can be neither reviewed nor unwound. The
-  part people skip: **both sides of the gate need CI**, from the day the gate
-  lands. An off-by-default path that nothing compiles is not staged work, it is
-  dead code accruing rot.
-- **Land the structural change ahead of the feature that needs it, on its own.**
-  A refactor that lands alone — motivated by a capability that does not exist
-  yet — is reviewable on its structure and revertible for free. Bundled with the
-  feature, it is neither.
+- **Small changes, merged fast.** Three small pull requests beat one large one
+  even when the total work is identical, because the feedback arrives while it
+  is still cheap to act on.
+- **Never break the main branch.** The default branch is always shippable; the
+  branch is the unit of experiment.
+- **Cost of a change ≈ number of decisions it touches.** When a routine
+  feature touches four modules, look at the boundary. Subtract moves,
+  generated files, and formatting first, and confirm the four are four
+  *decisions*; the count is the prompt, the coupling you find is the verdict.
+- **Make the common change a one-file change.** Look at the last ten changes
+  and ask how many files each *should* have touched. The gap is your
+  architectural debt, measured honestly.
 - **Prefer additive evolution at seams.** Add a new field, a new event version,
-  a new port implementation. Removing comes later, once nothing reads the old
-  thing. Big-bang migrations are how a quarter disappears.
+  a new port implementation; remove later, once nothing reads the old thing.
+  Big-bang migrations are how a quarter disappears.
 
-The mechanics that deliver this — splitting refactor from behaviour change,
-mapping steps to commits, naming the change that introduced a defect, what to
-subtract before judging a diff's size — live in
-[`pull-requests`](../pull-requests/SKILL.md#size-and-shape). They are the same
-rules; this section is why they are structural and not etiquette.
+The mechanics (one reason per change, refactor-test-change, structural work
+landed alone, inert infrastructure first with CI on both sides of the gate,
+what to subtract before judging size) are owned by
+[`pull-requests`](../pull-requests/SKILL.md#size-and-shape). The diagnostics
+that tell you whether the structure is still earning its keep are in
+[velocity](references/velocity.md).
 
 ---
 
 ## 13. Performance and scale, when they matter
 
-You do not sprinkle performance work. You locate it.
+The method (profile, magnitude, evidence matched to the claim, the losing
+workload, the unchanged contract) is owned by
+[`coding`](../coding/SKILL.md#5-performance). The structural decisions are
+these:
 
-- **Know the hot path and say where it is.** Most of a system is cold. The parts
-  that are not deserve explicit attention, explicit measurement, and explicit
-  comments explaining why the code looks unusual.
-- **Reveal costs, don't hide them.** Let the caller decide when to allocate,
-  when to copy, when to block. A function that silently does an expensive thing
-  is a landmine; a function that takes the expensive thing as a parameter is
-  honest.
+- **Know the hot path and say where it is.** Most of a system is cold. The
+  parts that are not deserve explicit measurement and comments explaining why
+  the code looks unusual.
+- **Reveal costs, don't hide them.** A function that takes the expensive thing
+  as a parameter is honest; one that silently does it is a landmine.
 - **Batch at boundaries, stream in the middle.** Crossing a boundary is the
-  expensive part. Do it once with everything rather than repeatedly with a
-  little.
+  expensive part. Do it once with everything, and do not convert a value to a
+  fatter representation just to cross.
+- **Back-pressure is a design decision.** Every queue, channel, and buffer has
+  a bound and a documented behaviour when full, enforced at the owner every
+  entry path traverses. An unbounded queue is a memory leak that has not
+  happened yet; a bound in one caller is pacing, not protection.
 - **An accelerator narrows work; it does not acquire authority.** A cache, an
-  index, a bloom filter, a materialised view: name the source of truth, keep the
-  derived thing behind its own boundary, and state which way its error may run.
-  A conservative filter may return candidates that turn out not to match; it may
-  never drop a real one, and the authoritative path still decides. Details, and
-  what to do when the derived state is stale or corrupt, in
+  index, a bloom filter, a materialised view: name the source of truth, keep
+  the derived thing behind its own boundary, and state which way its error may
+  run. Details in
   [patterns](references/patterns.md#derived-state-and-accelerators).
-- **Back-pressure is a design decision, not an accident.** Every queue, channel,
-  and buffer has a bound and a documented behaviour when full. An unbounded
-  queue is a memory leak that hasn't happened yet.
-- **Benchmarks are regression tests.** A performance claim with no benchmark is
-  a rumour, and a benchmark that is not run in CI decays within a month. But
-  benchmarks only model the workloads you thought of; production finds the
-  others. Passing benchmarks are evidence, not proof.
-- **Quantify the claim.** "Peak memory down 5-15%, generation time down 30-70%"
-  can be argued with and evaluated. "Faster" cannot.
-- **For a pure performance change, prove the observable contract is unchanged.**
-  Not "tests pass" — byte-identical results on the full fixture set and on real
-  and pathological inputs. And where the system streams, schedules, or applies
-  backpressure, the contract includes *when* results become visible, what
-  ordering is permitted, and what resource bounds hold. Equality of the final
-  output is the entire correctness argument only for a batch API that promised
-  nothing about progress.
-- **Hunt the accidental quadratic.** The classic shape is a defensive copy made
-  for a good local reason — ownership, immutability, avoiding aliasing — sitting
-  inside a loop over something that grows.
-- **Once, and only if needed.** Prefer lazy-and-memoised over eager-global over
-  recomputed. Eager work at startup is still work.
+- **Benchmarks are regression tests, and they model only the workloads you
+  thought of.** Production finds the others. Passing benchmarks are evidence,
+  not proof.
 - **Build the observability before you need it.** The metric that lets a
-  stranger diagnose a regression you have not had yet has to already exist when
-  it happens. Counters and timings on the hot path, available behind a flag,
-  are cheap insurance and the only alternative to guessing.
-- **Reverting is a normal move.** When a change turns out to cost more than it
-  bought, the correct response is usually to take it out, not to carry it plus a
-  partial fix while hunting for the real one. A fix that reintroduces the defect
-  the change existed to prevent is not a fix — say so out loud rather than
-  shipping it.
+  stranger diagnose a regression you have not had yet has to already exist
+  when it happens.
 
 ---
 
 ## 14. Write the decisions down
 
-Code records *what*. It cannot record *why*, or the three options you rejected.
-That knowledge leaves with the person who has it unless you write it down.
+Code records *what*. It cannot record *why*, or the three options you
+rejected. That knowledge leaves with the person who has it.
 
-**An architecture map** — one page, read by everyone, updated rarely. It
-contains: the bird's-eye view of the problem, a code map naming the modules and
-what each is for, the invariants (especially the absences), the boundaries, the
-cross-cutting concerns, and a *where do I make this change* table. It names
-files and types without linking to lines, so it does not rot. It answers the
-question that actually costs new contributors the most time, which is never "how
-do I write this" but "where does it go". Full shape in
-[references/structure.md](references/structure.md#an-architecture-map).
+**An architecture map**: one page, read by everyone, updated in the same change
+that invalidates it. It answers the question that costs new contributors the
+most time, which is never "how do I write this" but "where does it go". Shape
+in [structure](references/structure.md#an-architecture-map).
 
-**Decision records** — one short record per decision that is expensive to
-reverse ([format](references/adr.md)).
-Context, the decision, the alternatives considered, the consequences you accept.
-Numbered, dated, immutable: when a decision changes you write a new record that
-supersedes the old, you do not edit history. The value is not the decision — it
+**Decision records**: one short record per decision that is expensive to
+reverse, numbered, dated, immutable, superseded rather than edited. The value
 is the reasoning, which is what you need six months later when the constraints
-have shifted and you are asking whether the decision still holds.
+have shifted. Format in [adr](references/adr.md).
 
-**Before large or irreversible work, write the note first.** A page describing
-the intended change, circulated before implementation, is the cheapest possible
-place to discover the design is wrong. Discovering it in review costs a week.
-Discovering it after merge costs a quarter.
-
-**Record what you deliberately did not do.** In the change description and in
-the decision record: the restructuring you considered and rejected, and the
-reason. Without it, the next person "tidies" the code into the exact shape that
-was already considered and rejected, and nobody remembers why it was wrong.
-
-**Comments explain why, never what.** The code says what. A comment earns its
-place by capturing the context you had while writing it and the reader will not
-have: the constraint, the surprise, the thing you tried that did not work.
+**Before large or irreversible work, write the note first**, and **record what
+you deliberately did not do** in the change description. Both are owned by
+[`pull-requests`](../pull-requests/SKILL.md#say-what-you-deliberately-did-not-do).
 
 ---
 
 ## 15. Review posture
 
-Review is the mechanism by which the standards in this document actually happen.
+The standard, the order of attention, the conventions, and the full question
+list are owned by [`pull-requests`](../pull-requests/SKILL.md#reviewing). What
+an architect adds to a review, in a codebase organised as above:
 
-**The standard:** approve when the change definitely improves the overall health
-of the system, even if it is not perfect. Perfection is not the bar and pursuing
-it stalls the work. Continuous improvement beats withheld approval.
-
-**Facts over taste.** Technical facts and stated principles win. Where neither
-applies, the author's preference wins — it is their change. "I would have done
-it differently" is not a review comment.
-
-**Mark the optional as optional.** Prefix non-blocking polish with `Nit:` so the
-author knows exactly what they must address and what they may ignore. Ambiguity
-here is what makes review feel adversarial.
-
-**Review in order of importance:** does it solve the right problem → is the
-design right → is it correct → is it tested → is it clear → is it named well →
-is it tidy. Do not lead with the tidy.
-
-**What you are specifically looking for**, in a codebase organised as above:
-
-- Does this change point a dependency the wrong way?
-- Does it reach past a `contracts/` boundary?
-- Does it put a domain rule in the application layer, or an application concern
-  in the domain?
+- Does this change point a dependency the wrong way, or reach past a contracts
+  boundary?
+- Does it put a domain rule in the application layer, or an application
+  concern in the domain?
 - Does it introduce a `util` by another name?
-- Does it add configurability nobody asked for?
+- Does it add configurability nobody asked for, or a flag that hides a design
+  flaw?
+- Does it split a lock or a component without carrying the orderings the old
+  boundary supplied?
+- Does it move a decision to where the code is rather than where the
+  information is?
 - Does it make the common case harder to read to serve a rare one?
 - If this is the third similar thing, is the duplication now telling us
-  something — and is the abstraction it implies the *right* one?
+  something, and is the abstraction it implies the *right* one?
 
-**Teach in the comment.** Explain the principle, not just the correction. The
-goal is that the same comment is not needed next time.
+An architectural direction you would like to see is a non-blocking note, and
+you say so.
 
 ---
 
@@ -722,19 +531,12 @@ Before you write:
       separate values.
 - [ ] Nothing product-specific went into the core.
 - [ ] I know what happens if it crashes halfway, runs twice, or races.
+- [ ] Owned state is keyed by its owner before its local id.
 - [ ] I know how this gets deleted.
 - [ ] The dependency this adds points inward.
 
-Before you open a change:
-
-- [ ] It does one thing, and the commit message says which.
-- [ ] A test fails without it.
-- [ ] It touches the number of modules it *should* touch.
-- [ ] No new absence-invariant was violated.
-- [ ] No flexibility was added that a requirement did not force.
-- [ ] Every queue, buffer, and retry in it has a bound.
-- [ ] Anything expensive to reverse has a written note or an ADR.
-- [ ] Names match the domain language, including in tests.
+Before you open a change: the list in
+[`coding`](../coding/SKILL.md#8-finishing-and-reporting).
 
 ## 17. Smells that mean stop and re-cut the boundary
 
@@ -749,8 +551,11 @@ Before you open a change:
 - The machinery has to change every time a rule changes.
 - A caller must check something before it is allowed to call.
 - The description of a thing and the state of running it are the same object.
-- The only reason something is in the core is that it was easier to put it there.
-- Someone says "we'll clean it up later" for the third time about the same file.
+- A lookup by id alone can reach state that belongs to someone else.
+- The only reason something is in the core is that it was easier to put it
+  there.
+- Someone says "we'll clean it up later" for the third time about the same
+  file.
 
 None of these are emergencies. All of them are interest payments, and they
 compound.
@@ -759,17 +564,13 @@ compound.
 
 ## Where the rest of this lives
 
-- [references/structure.md](references/structure.md) — the layout, dependency
-  direction, the absences, boundaries between runtimes, and how to grow a new
-  module.
-- [references/patterns.md](references/patterns.md) — concrete techniques observed
-  in long-lived high-performance systems, and the review comments that recur.
-- [references/velocity.md](references/velocity.md) — the diagnostics that say
-  whether the structure is still earning its keep.
-- [references/adr.md](references/adr.md) — what earns a decision record, and the
-  template.
-- [`coding`](../coding/SKILL.md) — the working method for an individual change.
-- [`pull-requests`](../pull-requests/SKILL.md) — how a change gets described,
-  sized, and reviewed.
-- [`method`](../method/SKILL.md) — how defects get found, verified, and kept from
-  coming back.
+- [structure](references/structure.md): the layout, the absences, process
+  boundaries, growing a module, the architecture map.
+- [patterns](references/patterns.md): concrete techniques observed in
+  long-lived systems: structure, seams, gating, derived state, concurrency
+  protocols, evolving the core.
+- [velocity](references/velocity.md): the diagnostics that say whether the
+  structure is still earning its keep.
+- [adr](references/adr.md): what earns a decision record, and the template.
+- [`coding`](../coding/SKILL.md), [`pull-requests`](../pull-requests/SKILL.md),
+  [`method`](../method/SKILL.md): the change, its description, and the proof.
