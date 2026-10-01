@@ -72,7 +72,10 @@ write a type.
 **Answer four questions.** They take two minutes and they prevent most rework:
 
 1. *Who has the information needed to make this decision?* Put the
-   responsibility there, not where it is convenient to call from.
+   responsibility there, not where it is convenient to call from. Every fact
+   has one place in charge of it; if your code is guessing, copying, or
+   re-checking something another place owns, ask that place instead (the
+   [core rule](../system-architect/SKILL.md#the-core-rule-every-fact-has-one-authority)).
 2. *What must always be true?* Name the invariant and the function that
    enforces it.
 3. *What happens if this stops halfway, runs twice, or races?* Design for that

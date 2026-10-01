@@ -1,6 +1,6 @@
 ---
 name: system-architect
-description: "How to design and structure a codebase so the next change stays cheap: information ownership, bounded contexts and stable boundaries, separating mechanism from policy, a small core with product capability composed on top, invariants and failure first, authority-shaped state, and why product velocity is a structural property. Domain-driven and opinionated on purpose. Use before writing a new module, before adding a dependency between two parts of a system, when a change starts touching more files than it should, when boundaries or layering are being discussed, or when reviewing anything that spans more than one file."
+description: "How to design and structure a codebase so the next change stays cheap: one authority per fact, information ownership, bounded contexts and stable boundaries, separating mechanism from policy, a small core with product capability composed on top, invariants and failure first, authority-shaped state, and why product velocity is a structural property. Domain-driven and opinionated on purpose. Use before writing a new module, before adding a dependency between two parts of a system, when a change starts touching more files than it should, when boundaries or layering are being discussed, or when reviewing anything that spans more than one file."
 ---
 
 # The System Architect
@@ -53,7 +53,7 @@ Three consequences you accept without arguing:
 
 | | Pillar | In short | Where |
 | --- | --- | --- | --- |
-| 1 | **Information ownership** | Responsibility belongs where the information is. | §2, §4 |
+| 1 | **Information ownership** | Responsibility belongs where the information is; every fact has one authority. | [Core rule](#the-core-rule-every-fact-has-one-authority), §2, §4 |
 | 2 | **Stable boundaries** | Components meet through minimal contracts and know as little about each other as possible. | §3, §7 |
 | 3 | **The three separations** | Mechanism from policy, what from how, definition from execution. | §5 |
 | 4 | **Small core, composable pieces** | Keep the kernel tiny; extend through interfaces, not by growing the middle. | §6 |
@@ -66,6 +66,54 @@ Two things hold the pillars up and are not structural. **Language:** a name
 that does not match the product's word costs more than any of the above,
 because every conversation pays a translation tax (§3). **Enforcement:** a
 pillar with no test and no review comment is decoration (§11, §15).
+
+### The core rule: every fact has one authority
+
+Many rules in these skills are the same rule seen from different sides:
+**every fact the system relies on has exactly one place in charge of it.**
+That place creates it, decides it, changes it, checks it, and ends it.
+Everyone else asks that place, or uses what it handed out.
+
+Bugs start when a second place acts as if it were in charge. It guesses
+instead of asking. It keeps its own copy. It runs its own check, or tries to
+fix the value after the fact. Each of these works until the two places
+disagree.
+
+For every fact your change touches, ask:
+
+1. **Who makes it?** Only the place that creates a value can make it right.
+   Repairing it further along is guessing.
+2. **Who decides it?** One function decides. Callers use its answer; they do
+   not repeat the check.
+3. **Where does every path pass?** Put the authority there, so no caller can
+   go around it.
+4. **Who ends it?** Close, cancel, cleanup, and "exactly once" belong to
+   whoever owns the thing *now*. When ownership moves, these move with it.
+5. **Where is the promise made?** Test it there, not where it is easiest.
+
+Examples. Each row is one bug, the place that should have been in charge, and
+the rule that covers it in detail:
+
+| What went wrong | Who should be in charge | Rule |
+| --- | --- | --- |
+| Two runs each number things from zero, so merging them gives duplicate ids | The code that creates the id | [An id is only unique where it was made](../coding/SKILL.md#3-failure-first) |
+| One caller checks "rebuild needed", another does not, and the screen shows stale data | The one gateway every request passes | [Put a rule where every path has to pass](../coding/SKILL.md#3-failure-first) |
+| A queue of one item empties into an unlimited buffer, and memory grows anyway | The stage that actually holds the item | [A limit only works if the next step really took the item](../coding/SKILL.md#3-failure-first) |
+| Shutdown and the garbage collector both free the same memory | One owner holding a single "I'll do it" claim | [Idempotent, or keyed](../coding/SKILL.md#3-failure-first) |
+| A file at a shared path is deleted, but a newer process had already replaced it | Whoever created that file | [Clean up only what you created](../coding/SKILL.md#3-failure-first) |
+| A late reply from an old request clears what the user just typed | The current request | [Check meaning as well as shape](../coding/SKILL.md#principle-explicit-contracts-and-state-transitions) |
+| Code checks "has a terminal handle" when it means "owns the process" | The fact itself, stored as itself | [Store the real fact](#4-tactical-rules-inside-a-context) |
+| Dropping a handle is expected to stop a background task, and the task keeps running | Whoever holds the resource now | [Hand off the off switch too](#9-failure-and-invariants-first) |
+| A default is copied into a setting; the setting changes later and the copy is stale | One function that picks the winner | [A value picked from several sources](references/patterns.md#derived-state-and-accelerators) |
+| A lookup table outlives the content it points into, and crashes on the new content | The content it was built from | [When the source changes, everything built from it changes too](references/patterns.md#derived-state-and-accelerators) |
+| A request from localhost is trusted, but any web page on the machine can send one | The caller's identity, not the route it took | [Who sent it travels with the message](references/structure.md#rules-for-a-process-or-bundle-boundary) |
+| A macro crate builds on old Rust, but the code it writes for users does not | The place the promise is made: the user's build | [Test the promise where it is made](../method/SKILL.md#2-verifying) |
+
+**When you learn a new lesson, ask which authority it is about first.** If it
+is another case of one fact having two places in charge, add a row here and
+put the detail with the owning rule. Only add a new principle when no row
+fits. §9's "every invariant has a named enforcer" is this rule applied to
+invariants.
 
 ---
 
@@ -545,6 +593,8 @@ you say so.
 Before you write:
 
 - [ ] The responsibility sits where the information is.
+- [ ] Every fact this touches has one place in charge, and nothing else
+      guesses, copies, or re-checks it.
 - [ ] I can name the concept in the product's own words.
 - [ ] I know which context owns it and what the invariant is.
 - [ ] Machinery and rules are separable; definition and running state are
