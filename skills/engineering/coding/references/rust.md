@@ -34,6 +34,11 @@ in a comment at the declaration, numbered so review can cite it.
 not an error path; it is a normal exit that runs no code after the current
 await. Every async function is designed for being dropped there.
 
+**Every `?` is an exit too, and so is every panic.** Whatever is owed on the
+way out (a release, a counter, a flush, a timestamp) lives in a guard or
+happens before the first `?`. If cleanup depends on remembering it on each
+path, the error path is the one that forgets.
+
 **A promise made with `unsafe` is a proof over the whole safe API.** Marking
 something `Send`, `Sync`, or sound is a claim about every safe operation
 reachable from that type, now and after the next refactor, not about the fields
@@ -80,7 +85,11 @@ copy".
 **A field with an invariant is private and enforced in the constructor.** If
 any value is legal, make it public. If not, document the rule, make it private,
 and enforce it in the one function that can build the type. The invariant is
-then verified by reading one file.
+then verified by reading one file. Mutable access is a field too: `DerefMut`,
+`AsMut`, a `&mut Inner` getter, or a mutable iterator hands out every mutation
+the inner type has. Implement them only if all of those preserve the
+wrapper's invariant; otherwise re-expose the safe ones, and put raw access
+behind `unsafe` naming the mutation that breaks it.
 
 **Do not invent a postcondition the producer never promised.** A range handed
 into a matcher or decoder is not a bound on what comes back; with look-around
@@ -101,8 +110,10 @@ that with `NonZero*` or an offset representation. `Option<T>` becomes free and
 an illegal state becomes impossible.
 
 **Do not let a rare case fatten a shared type.** A large, rarely used variant
-or field is paid for by every instance. Box it, or move it to a structure only
-the rare path carries.
+or field is paid for by every instance, including every slot of an arena or
+pool sized by its largest member, such as one large future among many small
+ones. Box it, or move it to a structure only the rare path carries, and pin the
+outer size with a compile-time size assertion.
 
 **Size matters when the count is large.** For a type with millions of
 instances, its byte size *is* the memory profile. Count the bytes, pack where
@@ -154,7 +165,11 @@ construction, slow-path refills, and panics keep them out of every call site.
 
 **`#[inline]` on small leaf implementations that cross a crate boundary.**
 Without it a downstream crate cannot inline them and loses bounds-check elision
-at every call site. Do not scatter it elsewhere.
+at every call site. Do not scatter it elsewhere. Forcing a shared helper inline
+to fix one caller is paid by every caller; prefer a local fast path for the
+special state, and if you do force it, measure a representative caller that was
+not the target. A codegen test pins the observable shape, not a helper's
+symbol name.
 
 ## Concurrency
 
@@ -172,7 +187,16 @@ registry and release, or queue mutations and replay after. Holding across the
 call is acceptable only when re-entry is impossible by a local, durable
 guarantee. Where an operation must happen under the lock, check the actual
 mutex wrapper's behaviour on panic, and drop the replaced value after
-unlocking.
+unlocking. The callback's signature decides which of these is available:
+`&mut self` or `FnMut` forces the framework to serialise dispatch, while `&self`
+with `Fn + Sync` lets it snapshot and release and moves synchronisation into
+the extension. Changing one to the other is a breaking change, so choose before
+the API ships. Skipping a callback because `try_lock` failed is not a fix.
+
+**A callback that may run on another thread gets only cross-thread state.**
+Move the few fields it touches into a thread-safe owner (an `Arc` and atomics),
+and keep thread-affine cells, handles, and timers where they are. Do not widen
+the whole owner to `Send` or `Sync` to satisfy the callback.
 
 **A manual `unsafe impl Send` or `Sync` is a transitive proof.** Enumerate every
 way the inner state can escape through safe code: `Clone`, public fields and
@@ -234,7 +258,18 @@ built.
 
 **Order the fallible step before you are holding something that needs
 cleanup.** Any call that can panic between "took ownership" and "stored it
-safely" is a leak or a double free waiting to happen.
+safely" is a leak or a double free waiting to happen. Where the API makes you
+acquire first, wrap the raw handle in its owning guard immediately (an
+`OwnedHandle`, an `OwnedFd`, a small `Drop` type for a foreign free), do the
+fallible work through the guard, and go back to raw only at the final handoff.
+Wrap only what you own, never a borrowed handle. Check the documented
+nullability of foreign fields before building a reference, string, or slice
+from them.
+
+**Removing cleanup context from a type moves the proof, not just the field.**
+When an inner type no longer carries what it needs to clean itself up, the
+nearest owner that does cleans up in `Drop`, and any lower method that can
+bypass it becomes private or `unsafe` with its precondition written down.
 
 **`Drop` cannot break a cycle that prevents `Drop`.** When bridging to another
 ownership system (Objective-C, C++, OS callbacks), draw both sets of edges. If a
@@ -248,7 +283,14 @@ memory climbing over minutes) is the symptom; count retained handles alongside
 CPU.
 
 **Prefer early returns.** `let Some(x) = .. else { return }` and `?` keep the
-happy path at one indentation level.
+happy path at one indentation level, except past bookkeeping every run owes:
+record the result, do the bookkeeping, then return it, or move the bookkeeping
+into a guard.
+
+**Error context is queried by meaning, not by wrapper order.** When a path, a
+depth, or a span attach to an error independently, expose accessors so
+consumers never pattern-match a nesting order. Keep nesting only where it
+records real causation.
 
 ## Async
 
@@ -258,7 +300,9 @@ caller waits belongs in a spawned task.
 
 **Say what happens on cancellation.** Any `async fn` that can be dropped
 mid-way documents whether partial work is visible, and every `select!` arm is a
-cancellation point.
+cancellation point. Dropping a handle to work a spawned task now owns is
+intent, not cancellation; see
+[`system-architect`](../../system-architect/SKILL.md#9-failure-and-invariants-first).
 
 **Say when output becomes observable.** Anything with `flush`, line buffering,
 or incremental delivery in its vocabulary has a latency contract as well as a
@@ -270,9 +314,14 @@ shared, the bound lives at the lowest owner every entry path traverses, as a
 semaphore or an admission queue, and the caller's window shapes latency on top
 of it. Test a second entry path, and that cancellation returns capacity.
 
-**Never block in async context.** Filesystem calls, heavy computation, and
-synchronous locks held across an `await` stall the executor. Move them to a
-blocking pool, and ask "does this ever block?" of every new dependency.
+**Never block a thread that serves unrelated work.** An executor worker, and
+equally a UI, event-loop, or protocol callback whose signature happens to be
+synchronous: filesystem calls, heavy computation, and synchronous locks held
+across an `await` stall everything else it serves. Move them to a blocking
+pool; if the API hands you a responder or completion handle, hand off, return,
+and complete later. Ask "does this ever block?" of every new dependency. Never
+wait by freezing the loop that must deliver the wake; where the host cannot
+suspend in the current context, fail explicitly.
 
 **Do not hold a lock across an `await`.** It converts a fast mutex into a
 source of deadlock.
@@ -288,8 +337,22 @@ The rules are in [testing](testing.md). What Rust adds:
   sanitisers, the exhaustive concurrency checker, a fuzzer for anything parsing
   untrusted input, and a semver check on the public interface. Each answers one
   question.
-- **Build the feature powerset and the minimum toolchain.** It is the only way
-  to know that optional capabilities are actually optional.
+- **Build the feature powerset, the minimum toolchain, and a fresh
+  resolution.** It is the only way to know that optional capabilities are
+  actually optional. Where the powerset is too large, build each feature alone
+  without defaults. The minimum toolchain is the one *each published crate*
+  declares; a workspace default inherited by a library silently raises its
+  consumers' floor, and a passing build proves that version works, not that it
+  is the minimum. A lockfile is one sample of what downstream users can
+  resolve.
+- **A macro is a small compiler; test what it emits.** Compile the generated
+  code on the downstream minimum toolchain and editions, not only the macro
+  crate, and through a live invocation, because spans carry edition and
+  hygiene that expanded text recompiled as source does not. A macro with
+  per-platform or per-backend expansions has one public contract; test each
+  materially different expansion. Generated code that calls a companion
+  crate's internals uses only its public contract or a versioned private one,
+  so a mismatch fails at build time.
 
 ## Performance in Rust
 

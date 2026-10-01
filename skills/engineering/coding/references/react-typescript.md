@@ -138,7 +138,9 @@ Activity in one lane makes the other look changed.
 
 **Derive rather than duplicate.** State computable from other state is a
 synchronisation problem you chose to have. Store the minimum; compute the rest
-during render.
+during render. When a value is chosen by precedence among sources, it is a
+[projection](../../system-architect/references/patterns.md#derived-state-and-accelerators),
+never written back into the primary.
 
 **Lift state to the lowest common owner, not to the top.** State parked above
 where it is used re-renders everything between.

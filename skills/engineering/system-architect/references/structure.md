@@ -99,16 +99,26 @@ worker and a page) rots silently unless these hold.
 - **Everything crossing the seam is an explicit message**, never shared state.
 - **Preserve the natural representation.** Bytes that are already bytes do not
   become text and back because the convenient channel takes text. Text may be
-  the correct stable contract; accidental amplification is what to avoid.
+  the correct stable contract; accidental amplification is what to avoid. A
+  handler that understands only part of a protocol forwards what it did not
+  claim in its original form, not reserialised through its narrower schema.
 - **Guard the seam so the far side can run without the near one**, if that is
   a supported mode. It is worth a build-matrix job, because it breaks quietly.
 - **Validate at the boundary, then trust inwards.** Parse untrusted input into
   a domain type once, at the edge.
 - **Pass the first payload in.** State the far side needs to do its first
   useful work arrives with it, not as a round trip afterwards.
-- **Authority travels with the message, not with a guessable id.** A response
-  queue, a session table, or a resource map shared across principals is keyed
-  by the principal first.
+- **Authority travels with the message, not with a guessable id, and not with
+  the transport.** A response queue, a session table, or a resource map shared
+  across principals is keyed by the principal first. Loopback, a local socket,
+  or a private bind says where traffic travels, not who sent it; every route
+  into the service, fallbacks and upgrades included, applies the same caller
+  check.
+- **A private interface between separately versioned packages is a protocol.**
+  When code on one side (often generated) calls internals on the other, and
+  the two can be upgraded independently, use only the public contract or
+  version the private one, so a mismatch fails at build time rather than
+  binding silently.
 
 ## Growing a new context
 

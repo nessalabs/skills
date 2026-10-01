@@ -36,7 +36,10 @@ for all inputs**, and let a generator attack it.
 
 - **Round-trip**: parse, print, parse again; the two structures are equal.
 - **Differential**: two implementations of one contract agree. A fast path and
-  a reference path; an optimised strategy and the naive one.
+  a reference path; an optimised strategy and the naive one. When a change
+  claims compatibility with an existing tool, that tool is the oracle: run the
+  same cases through both, normalise presentation, and freeze the
+  disagreements as local tests.
 - **Invariant**: the module's stated guarantee, asserted after every operation.
 - **Never panics, never hangs** on arbitrary input, for anything reading data
   you do not control.
@@ -173,6 +176,14 @@ that toggling one call changes the symptom, and your own reproduction are
 different things. Correlation from bisection is useful and is not root cause.
 An approval proves that someone approved. A closed proposal does not prove its
 design was rejected. Say which you have, and do not upgrade one into another.
+
+**Check the property at the level it is claimed.** A guarantee at one stage
+is not a guarantee of the composition. A bounded stage says nothing about the
+pipeline it drains into; a generator that builds says nothing about the code
+it emits; a dropped handle says nothing about the owner that holds the
+resource; a fast path that compiled in says nothing about the runtime that
+will run. Name the level the promise is made at, and test there rather than
+where it is easiest to show.
 
 **Do not re-run a flake.** When a test fails intermittently, reconstruct the
 interleaving that produces the observed value and explain why it is now

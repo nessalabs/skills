@@ -125,11 +125,53 @@ cheap, which is the outcome most such experiments deserve.
 useful shape for a candidate filter: *it never claims a match; it returns what
 it cannot rule out; the authoritative path verifies; false positives cost time,
 false negatives are a bug.* Let an accelerator answer rather than narrow and
-every corruption becomes a wrong answer instead of a slow one.
+every corruption becomes a wrong answer instead of a slow one. A fact that
+permits skipping authoritative work (exact, complete, covers everything,
+unchanged since) must stay true through every way facts combine (union,
+choice, concatenation, truncation) and under every legal writer, including
+out-of-order ones. When the combination law is unclear, weaken the fact.
+
+**An accelerator changes cost, never meaning.** A private fast-path hook
+defaults to the full general operation, and an override may only be cheaper;
+the caller calls one method and never downcasts or inspects type names. An
+accelerator's precondition is not the caller's contract either: do not reorder
+meaningful input to suit a forward-only cursor; restart the cursor, and keep
+the strict fast path for callers who guarantee the order.
+
+**A rewrite names the law that makes it legal.** Moving one computation past
+another is allowed when you can say why they commute; checking that its inputs
+still exist is not that. Anything that reads order, neighbours, or accumulated
+state is a barrier until a specific law is shown. For opaque extension code,
+the extension declares the properties a rewrite relies on (deterministic,
+pure, elementwise), and those properties travel through serialisation as part
+of its identity.
+
+**Key a derived artefact by what its consumers observe.** Derive the
+fingerprint from the canonical artefact where you can, rather than from a
+hand-kept list of fields. Fields that locate without meaning (paths, file
+names) stay outside the hashed region. Any mode that changes what the artefact
+contains (instrumentation, coverage, debug) is part of its identity, checked at
+the cache boundary rather than left to callers to clear. Test both directions:
+what must change the key and what must not.
+
+**Derived state follows its source's lifecycle.** An index, mapping, or cache
+that addresses source content is invalidated in the same transition that
+replaces the source, and an entry is evicted on the event that removes its
+source; a weak reference does not remove stale metadata. User state layered on
+top (a filter, a sort order) survives only while the identities it refers to
+are still compatible.
+
+**An effective value chosen by precedence is a projection.** When independent
+sources compete (an override, a configured value, a default), each stays
+authoritative, one accessor every consumer uses computes the choice, and the
+fallback is never written into the primary's storage.
 
 **Derived means rebuildable, which is a separate question from available.** Say
 what happens when it is absent, stale, locked, corrupt, or written by an older
 version: fall back, rebuild in the background, rebuild on demand, or refuse.
+An optional accelerator that is compiled in is not therefore present at
+runtime: probe without failing, and fall back while the baseline is still
+valid.
 Measure the fallback before calling the system resilient. Failing closed is a
 legitimate choice to write down at the selection boundary, not a default to
 drift into.
@@ -187,6 +229,11 @@ after, and test add, remove, self-removal, and nested emission. Holding across
 the call is acceptable only when re-entry is impossible by a local, durable
 guarantee, not by convention.
 
+**A serial queue is a dependency claim.** An operation stays in it only if its
+answer depends on earlier queued work. Reads keyed by an immutable id may
+bypass it; reads that resolve current state stay in order; anything that
+bypasses still passes the shared bound.
+
 **Encode the concurrency contract in type names.** A single shared buffer
 exposed as two types (producer handle, single thread; consumer handle, any
 thread) makes the rule impossible to violate by accident.
@@ -221,6 +268,11 @@ correct while it keeps changing; the mechanics of landing a change are in
 error, but that is an interface change, which I would like to avoid."*
 Choosing the smaller fix because the larger one breaks a promise, and saying
 so, is the routine case.
+
+**Promise the smallest property.** A guarantee spends future freedom. When
+consumers want to rely on an incidental layout, alignment, or ordering, either
+keep it explicitly unpromised or promise only what they need ("aligned to at
+least eight", not the layout).
 
 **A dependency is a policy decision with a memory.** A change reverted with
 "we removed this dependency before when it raised its minimum compiler version

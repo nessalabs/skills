@@ -159,7 +159,15 @@ reviewer.
 before calling ("only call this if the turn is still streaming"), the check has
 been placed away from the information it depends on and will be forgotten at
 the fourth call site. Give the callee the decision and a return type that says
-what happened.
+what happened. The same move for absence: make an empty or no-op value cheap
+inside the abstraction that owns it before pushing an `Option` and a branch
+into every caller.
+
+**Model the fact, not its proxy.** When a decision depends on a fact (who owns
+this process, may this take focus), give the fact its own representation and
+derive every capability from it. A mechanism that usually accompanies the fact
+(a handle exists, an ordering index is set) will one day exist without it, or
+the fact without the mechanism.
 
 **Invariants live in constructors, not in callers.** If a field can hold any
 value, expose it. If it cannot, make it private, document the invariant, and
@@ -185,7 +193,11 @@ One move, applied at three altitudes.
 scheduler knows how to run things, not which deserve priority; a retrier knows
 how to retry, not what is worth retrying. Fuse them and every product change
 becomes an edit to infrastructure. The test: *can I change this rule without
-touching the machinery, and reuse the machinery under a different rule?*
+touching the machinery, and reuse the machinery under a different rule?* The
+converse holds too: two operations that run through one mechanism may owe
+different things. Decide the obligation per operation, and do not let the
+convenient primitive (insert versus append, mandatory versus best-effort)
+choose the semantics.
 
 **What from how.** Callers express intent; the system chooses execution.
 "Deliver this reply" is a what; "spawn a task, poll every 50ms, retry three
@@ -344,6 +356,11 @@ then its entropy, leakage, revocation, and lifetime are explicit invariants,
 not a substitute for an owner the system already knows. Once the structure
 enforces isolation, delete the security machinery it made redundant.
 
+**An ownership boundary is also a control boundary.** When a resource moves to
+a worker, a task, or a process, every control action (cancel, close, reset,
+error) gets an explicit path to the new owner. Dropping the caller's handle
+expresses intent; it cancels nothing the new owner does not hear about.
+
 **Migrations are a semantic dependency graph.** A later migration depends on
 durable facts, not on an intermediate shape an earlier migration happened to
 introduce. Before changing or deleting migration N, search every later one for
@@ -357,7 +374,8 @@ nobody until they have been hurt. Track such flags as debt. The distinction is
 what the flag hides: covering a design flaw, it is debt; covering the *rollout*
 of a mechanism replacement, it is a seam with a removal date (§6). Reject the
 flag that buys flexibility nobody asked for; keep the one that buys
-reversibility.
+reversibility. A workaround is scoped to the deficit that justifies it, and
+removed where that deficit is absent.
 
 ---
 
@@ -552,6 +570,8 @@ Before you open a change: the list in
 - A caller must check something before it is allowed to call.
 - The description of a thing and the state of running it are the same object.
 - A lookup by id alone can reach state that belongs to someone else.
+- A decision reads a mechanism ("has a handle", "has an index") as a stand-in
+  for the fact it cares about.
 - The only reason something is in the core is that it was easier to put it
   there.
 - Someone says "we'll clean it up later" for the third time about the same

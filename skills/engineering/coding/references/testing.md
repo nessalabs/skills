@@ -48,24 +48,49 @@ ordering, deduplication, lifecycle, and retry logic must still run. Substitute
 the lowest nondeterministic boundary only. If the fake contains a second
 coordinator or state machine, the seam is too high; move it down.
 
-**Determinism is injected, never ambient.** Clock, randomness, scheduling, and
-ordering arrive as parameters. A test that passes ninety-nine times in a
+**Determinism is injected wherever it can be.** Clock, randomness, scheduling,
+and ordering arrive as parameters. A test that passes ninety-nine times in a
 hundred has already failed: it has taught the team that red does not mean
-broken.
+broken. Where the ambient facility *is* the contract (the environment, a
+process-wide engine), isolate at its true scope: one serial domain every
+conflicting test takes, including the ones that only read, or a separate
+process. A lock per variable does not make a process-global mutation safe.
 
 **Control the transition, not elapsed time.** For a race, inject a gate at the
 boundary where the overlap can happen, force the overlap, and assert the exact
 positive outcome. A sleep and an upper-bound assertion are not evidence when
-zero work would also pass.
+zero work would also pass. Where the overlap cannot be gated (a garbage
+collector, a native scheduler), extract the shared state transition and test
+every ordering of it deterministically; the end-to-end reproduction is a
+supplement, never the only gate.
 
 **A test must be unable to pass when the intended work never happened.** Before
 asserting cleanup, prove the thing existed. Before asserting "no duplicate",
 prove exactly one. Before asserting "nothing was parsed", put something
-malformed where parsing would have happened.
+malformed where parsing would have happened. Before asserting something was
+added, seed an unrelated value and assert it survives, or replace and append
+look the same. A fix that suppresses a warning, error, retry, or denial also
+asserts the signal still fires on the nearby cases, one per leg of the new
+condition, or turning the checker off everywhere passes too. A benchmark is
+held to the same standard: assert the work each iteration must do, and that
+threads, handles, and memory return to baseline between samples.
 
-**Async assertions poll, never sleep.** Sample the observable state until the
+**Exercise the plural case.** A fixture with one chunk, one item, or one worker
+cannot tell per-iteration work from per-container work. Force at least two, and
+assert that headers, footers, and one-shot finalisers appear exactly once,
+where the format puts them.
+
+**Every legal spelling of one fact gives one result.** Where a format allows
+several spellings (repeated fields, lists, case, order), test that each reaches
+the same decision and the same normalised value. Where conflicting inputs
+resolve to one authority, assert the loser is gone from what goes downstream,
+in every order.
+
+**Async assertions poll by default.** Sample the observable state until the
 condition holds or a timeout fires. A fixed sleep is either slow or flaky, and
-usually becomes both.
+usually becomes both. Real time belongs only in a test whose subject is the
+real timer or event loop; group those, use coarse margins, and assert a
+positive event.
 
 **One behaviour per test, minimal setup.** Strip the fixture to exactly what
 the assertion needs. Anything left in that does not affect the outcome is
@@ -88,9 +113,14 @@ that an automated test.
   helper was called in which order is the tax.
 - Call counts standing in for behaviour. A spy on a counter asserts the
   implementation; a malformed input where the work would have happened asserts
-  the behaviour.
+  the behaviour. The exception is where the count *is* the defect, such as a
+  busy loop: count the repeated operation, and prove the task is still alive
+  and parked, so a dead task cannot pass.
 - Framework behaviour. The UI library renders; assume it.
-- Generated or trivially derived code.
+- Each generated instance, or trivially derived boilerplate. The generator is
+  code: a macro or code generator that carries behaviour, visibility, or a
+  type-level promise is a small compiler, and is tested once at the generator,
+  with runtime and compile-fail fixtures for what its output must do.
 - Exact markup or pixel output, except where a rendering *is* the product
   behaviour and a snapshot is cheaper than a description.
 - Anything that exists for coverage. Coverage finds code nobody has executed;

@@ -104,7 +104,9 @@ another owner, request, or generation, or arrive in a state that cannot accept
 it. Name the authoritative validator and transition owner. Route each entry
 path through that owner; callers consume its decision rather than reimplement
 the check. Validate a returned result against the request and state it came
-from before allowing it to change current state.
+from before allowing it, or any of its side effects (a shown error, cleared
+pending input, a timer, a cleanup), to change current state. A stale attempt
+may still be logged; it may not act.
 
 **Write the transitions before implementing them.** For a flow with meaningful
 intermediate states, use a table in its existing design document or module
@@ -175,6 +177,11 @@ paraphrases the line below it gets deleted.
 **Correct the name in the same change that invalidates it.** Renaming is cheap.
 Living with a name that no longer describes the thing is not.
 
+**When variants collapse, audit every match by hand.** Folding several cases
+into one case plus a mode compiles everywhere, and the compiler proves only
+that each match is exhaustive. Classify each old site as "any of these" or
+"exactly this one" before translating it; the second kind silently widens.
+
 ## 3. Failure first
 
 Design the interrupted case before the happy path. The happy path will be
@@ -184,10 +191,17 @@ repeated, or entered twice.
 - **One state, one representation.** A sentinel meaning two things will be read
   as the wrong one, and the case where it matters is always a retry or a
   restart. Give each state its own name before you need to tell them apart.
-- **An ambiguous observation is not a terminal state.** Before a zero, an empty,
-  a `None`, or a timeout moves something to finished or closed, write down what
-  else it could mean. A read that returned nothing because the buffer had no
-  room is not end of stream; the damage shows on the *next* call.
+- **An observation stands in for a fact; name the fact.** Before a zero, an
+  empty, a `None`, a timeout, a process exit, a bind address, or a path decides
+  that something is finished, trusted, or yours, write down what else could
+  produce it. A read that returned nothing because the buffer had no room is
+  not end of stream; end of stream means every writer closed, not that the one
+  process you waited on exited. Wait on the fact the contract names.
+- **An id is unique only inside the scope that minted it.** A generated or
+  recycled id names a slot in one run, generation, or lifetime, not the
+  object. When fragments built separately are merged, the producer mints into
+  the shared namespace; the merge does not repair collisions afterwards. A
+  cache that outlives what an id names keys by id and generation.
 - **Anything reserved is rolled back or filled.** A count, a slot, or a
   published handle for a participant that a failing constructor never created
   is a peer waiting forever. Inject the failure at each setup position and ask
@@ -203,13 +217,17 @@ repeated, or entered twice.
   on the thing you hold. Snapshot before dispatch, or queue the mutation and
   replay it after, or prove locally that re-entry is impossible. Convention is
   not a proof.
-- **Ambient state is an input.** Working directory, environment, locale, clock:
-  if it decides what the operation *means*, capture it once at the boundary and
-  pass that value down, rather than letting each layer reread it.
+- **Ambient state is an input.** Working directory, environment, locale, clock,
+  platform, whatever a registry currently calls "latest": if it decides what
+  the operation *means*, capture it once at the boundary and pass that value
+  down, rather than letting each layer reread it. Several consumers of one
+  configured value share one resolver.
 - **Cleanup is structural, never remembered.** Tie removal to a scope, a guard,
   or a lifetime, not to a teardown call on every exit path, because the path
   that gets forgotten is the successful one. A resource owned by a branch is
   acquired by that branch, as late as possible, not up front for every branch.
+  Cleanup removes only what this owner created: a shared path or slot may
+  already belong to a newer owner, so check identity before deleting.
 - **Releasing a resource is half the obligation; waking whoever waits on it is
   the other half.** For every exit, name the owner that returns the resource and
   the transition that makes the waiter runnable.
@@ -218,11 +236,25 @@ repeated, or entered twice.
   to re-acquire it if a later legal event needs it.
 - **Idempotent, or keyed.** Assume anything can run twice. Overwriting
   operations tolerate retries; appending ones need an identity that makes the
-  second attempt recognisable.
+  second attempt recognisable. When several terminal paths (drop, teardown,
+  timeout, a collector) can run the same non-idempotent effect, they compete
+  for one claim held by one owner, and only the winner runs it; no path
+  guesses from its own flags whether the effect already happened.
+- **An obligation lives where every path passes.** A bound, a pending rebuild,
+  a caller check: put it at the gateway every entry path traverses, private to
+  that gateway, so no caller can consume it or go around it.
 - **Every queue, buffer, and retry loop has a bound** and a stated behaviour at
   the bound. Name what the bound protects and at which owner it is enforced:
   a window in one caller is pacing, not a limit, if another path reaches the
-  same resource.
+  same resource. A bounded stage bounds nothing if it drains into an unbounded
+  one; dequeue only once the next stage has admitted the item, and let close
+  and cancel through while data is held back. When several layers set the
+  number, say which is the caller's ceiling and which is a default: a default
+  never raises an explicit ceiling, and an adaptive controller only narrows it.
+- **Accepted work has a fate at shutdown.** Decide per operation what a
+  graceful shutdown finishes, what it may abandon, and how abandonment is
+  reported. Work already acknowledged does not silently vanish, and a wait on
+  external input does not hold shutdown open.
 - **Authority is part of the key.** State owned by a principal (tenant, session,
   window, user) is stored under the owner first and the local id second, so a
   guessed id cannot select someone else's state and no caller has to remember
@@ -265,7 +297,11 @@ Do not sprinkle it. Locate it.
    scenario, baseline, result, and machine. A mechanism-only claim ("removes
    one serialisation per request") names the cost that disappeared and says
    that end-to-end impact was not measured. Both are honest; an invented
-   magnitude and a bare "faster" are not.
+   magnitude and a bare "faster" are not. Either way, confirm the benchmark
+   actually executes the changed path. A heuristic that *chooses* a plan or
+   strategy is evidenced twice: how often it chooses right, over repeated
+   identical runs and on inputs near its threshold, and how fast the chosen
+   plan is. One fast run hides an unstable decision.
 5. **For a pure performance change, prove the observable contract is
    unchanged.** For a deterministic batch API that is identical output on the
    full fixture set and on pathological inputs. Where the API promises
@@ -274,12 +310,14 @@ Do not sprinkle it. Locate it.
    part of the contract. The same final bytes arriving only at end of stream is
    a regression.
 6. **Benchmark the workload it should lose on** and report both: low and high
-   concurrency, short and long tasks, full and partial batches. For code-size or
-   compile-time work, report the counter-metrics too (build time, runtime if
-   dispatch changed). Mixed results are reported as mixed, not summarised as
+   concurrency, short and long tasks, full and partial batches, cold and warm;
+   for a change in work order, peak memory as well as time to first result.
+   For code-size or compile-time work, report the counter-metrics too (build
+   time, runtime if dispatch changed). Mixed results are reported as mixed, not summarised as
    "faster".
 7. **Skip work only when its result cannot reach anything**: no future
-   iteration, no output, no error still owed. Keep the structural bookkeeping
+   iteration, no output, no error, and no close, cancellation, release, or
+   wake still owed. Keep the structural bookkeeping
    the surrounding protocol needs. Test it by putting something malformed where
    the work would have happened and asserting nothing surfaces.
 8. **Do not start work before its consumer can schedule it.** If the consumer
@@ -288,6 +326,9 @@ Do not sprinkle it. Locate it.
 9. **Prefer once-and-only-if-needed** over eager, and eager over recomputed.
 10. **Revert an optimisation you cannot maintain.** Whatever the benchmark says,
     code nobody can safely modify is a liability.
+11. **A tuned constant records what it was tuned against**: the mechanism, the
+    workload, and the cost it bounds, in a comment beside it. When that
+    mechanism changes, re-measure the constant or delete it.
 
 Language specifics: [Rust](references/rust.md#performance-in-rust),
 [React & TypeScript](references/react-typescript.md#performance-in-react).
@@ -301,8 +342,10 @@ can. The mechanics, the description format, and what to subtract before judging
 a diff's size are owned by
 [`pull-requests`](../pull-requests/SKILL.md#size-and-shape).
 
-**Update the prose the change invalidates**, in the same change. Grep for the
-term; the invalidated sentence is rarely in the file you edited.
+**Update the prose and configuration the change invalidates**, in the same
+change. Grep for the term; the invalidated sentence is rarely in the file you
+edited. A CI job that pins or substitutes a dependency is part of what an
+upgrade updates; otherwise it keeps proving the old graph.
 
 ## 7. Reviewing your own diff
 
