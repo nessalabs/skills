@@ -86,12 +86,18 @@ capability that should be composed on top rather than absorbed into the middle.
 The exceptions and the reasoning are in
 [`system-architect`](../system-architect/SKILL.md#6-small-core-composable-pieces).
 
-### Contracts and state transitions
+### Principle: explicit contracts and state transitions
 
-Apply this to every new or changed use case, including UI actions, background
-work, persistence, and messages between systems. Define what the operation
+Use this approach when a use case's correctness depends on input expectations,
+intermediate states, or messages between owners. It works for UI actions,
+background work, persistence, and messages between systems. Define what the operation
 accepts, what must already be true, what must remain true, and what each output
 guarantees: its inputs, preconditions, invariants, and postconditions.
+
+Choose the representation that makes those expectations easiest to understand:
+validated methods, a reducer, a transition table, or a state machine. This is
+one coding principle to draw on; developers can use another approach that makes
+the behavior and its guarantees equally clear and testable.
 
 **Check meaning as well as shape.** A well-formed message can still belong to
 another owner, request, or generation, or arrive in a state that cannot accept
@@ -131,10 +137,10 @@ orderings. Assert the output and resulting authoritative state, including what
 stays unchanged on refusal. Use controlled scheduling for competing events;
 the testing method remains in [testing](references/testing.md).
 
-Apply this prospectively and improve existing boundaries as they are touched.
-If conformance requires a substantial unrelated refactor, document the affected
-contract, remaining gap, and concrete follow-up in the change rather than
-silently claiming conformance or expanding it into an app-wide rewrite.
+Use this prospectively and improve existing boundaries as they are touched
+where practical. If adopting the approach requires a substantial unrelated
+refactor, describe the useful follow-up separately. Claims about guarantees
+still need evidence; adopting the principle does not require an app-wide rewrite.
 
 ## 2. While writing
 
@@ -310,10 +316,9 @@ one to ask first of your own work: **is the claim in my description actually
 true?** Walk the interrupted, repeated, and re-entered paths yourself rather
 than accepting your own answer.
 
-For changed behavior, identify the [contract](#contracts-and-state-transitions),
-its enforcing code, and the tests that exercise its transitions. Missing input,
-state, output, or concurrency guarantees are review findings; record any deferred
-legacy work under that section's adoption rule.
+When using [explicit contracts and state transitions](#principle-explicit-contracts-and-state-transitions),
+review the chosen representation against the behavior it promises: identify its
+enforcing code and transition tests, and describe any deferred adoption work.
 
 ## 8. Finishing and reporting
 
