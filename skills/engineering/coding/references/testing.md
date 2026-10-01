@@ -51,46 +51,49 @@ coordinator or state machine, the seam is too high; move it down.
 **Determinism is injected wherever it can be.** Clock, randomness, scheduling,
 and ordering arrive as parameters. A test that passes ninety-nine times in a
 hundred has already failed: it has taught the team that red does not mean
-broken. Where the ambient facility *is* the contract (the environment, a
-process-wide engine), isolate at its true scope: one serial domain every
-conflicting test takes, including the ones that only read, or a separate
-process. A lock per variable does not make a process-global mutation safe.
+broken. Sometimes the shared thing *is* what you are testing, such as
+environment variables, which the whole process shares. Then tests running at
+the same time can trip over each other. Make them take turns on one shared
+lock (including tests that only read), or run them in a separate process. One
+lock per variable is not enough, because the whole environment is one shared
+thing.
 
 **Control the transition, not elapsed time.** For a race, inject a gate at the
 boundary where the overlap can happen, force the overlap, and assert the exact
 positive outcome. A sleep and an upper-bound assertion are not evidence when
-zero work would also pass. Where the overlap cannot be gated (a garbage
-collector, a native scheduler), extract the shared state transition and test
-every ordering of it deterministically; the end-to-end reproduction is a
-supplement, never the only gate.
+zero work would also pass. Sometimes you cannot control when the two sides
+run, for example when one is the garbage collector. Then pull out the small
+piece of shared state they both change, and test it directly in every order
+(A then B, B then A). Keep the full end-to-end reproduction as an extra, but
+never as the only test, because it only fails some of the time.
 
 **A test must be unable to pass when the intended work never happened.** Before
 asserting cleanup, prove the thing existed. Before asserting "no duplicate",
 prove exactly one. Before asserting "nothing was parsed", put something
 malformed where parsing would have happened. Before asserting something was
-added, seed an unrelated value and assert it survives, or replace and append
-look the same. A fix that suppresses a warning, error, retry, or denial also
-asserts the signal still fires on the nearby cases, one per leg of the new
-condition, or turning the checker off everywhere passes too. A benchmark is
-held to the same standard: assert the work each iteration must do, and that
-threads, handles, and memory return to baseline between samples.
+*added*, put something else there first and check it is still there
+afterwards; otherwise "add" and "replace" look the same. If your fix hides a
+warning or error in one case, also check the warning still appears in the
+cases next to it; otherwise switching the warning off everywhere would pass
+too. Benchmarks follow the same rule: check each loop really did the work, and
+that threads, file handles, and memory go back to normal between runs.
 
-**Exercise the plural case.** A fixture with one chunk, one item, or one worker
-cannot tell per-iteration work from per-container work. Force at least two, and
-assert that headers, footers, and one-shot finalisers appear exactly once,
-where the format puts them.
+**Test with two, not just one.** With one item, you cannot tell "done once per
+item" from "done once in total". A file header written inside the loop looks
+fine with one batch and breaks with two. Use at least two, and check that
+headers, footers, and run-once steps appear exactly once, in the right place.
 
-**Every legal spelling of one fact gives one result.** Where a format allows
-several spellings (repeated fields, lists, case, order), test that each reaches
-the same decision and the same normalised value. Where conflicting inputs
-resolve to one authority, assert the loser is gone from what goes downstream,
-in every order.
+**The same meaning written differently gives the same result.** Many formats
+let you say one thing several ways: a field repeated or written as a list,
+upper or lower case, a different order. Test that every way gives the same
+answer. When two inputs disagree and one wins, check the losing one is
+removed from what gets passed on, whichever order they came in.
 
 **Async assertions poll by default.** Sample the observable state until the
 condition holds or a timeout fires. A fixed sleep is either slow or flaky, and
-usually becomes both. Real time belongs only in a test whose subject is the
-real timer or event loop; group those, use coarse margins, and assert a
-positive event.
+usually becomes both. Use real time only when the real timer is the thing
+being tested. Keep those tests together, give them generous margins, and check
+that something actually happened.
 
 **One behaviour per test, minimal setup.** Strip the fixture to exactly what
 the assertion needs. Anything left in that does not affect the outcome is
@@ -113,14 +116,14 @@ that an automated test.
   helper was called in which order is the tax.
 - Call counts standing in for behaviour. A spy on a counter asserts the
   implementation; a malformed input where the work would have happened asserts
-  the behaviour. The exception is where the count *is* the defect, such as a
-  busy loop: count the repeated operation, and prove the task is still alive
-  and parked, so a dead task cannot pass.
+  the behaviour. The exception is when the count *is* the bug, such as a loop
+  that spins forever doing nothing. Then count it, and also check the task is
+  still alive and waiting, so a task that simply crashed cannot pass.
+- Each piece of generated code, or boilerplate. But the generator itself is
+  code. If a macro or code generator decides behaviour, visibility, or types,
+  it is a small compiler: test it once, with examples that must work and
+  examples that must fail to compile.
 - Framework behaviour. The UI library renders; assume it.
-- Each generated instance, or trivially derived boilerplate. The generator is
-  code: a macro or code generator that carries behaviour, visibility, or a
-  type-level promise is a small compiler, and is tested once at the generator,
-  with runtime and compile-fail fixtures for what its output must do.
 - Exact markup or pixel output, except where a rendering *is* the product
   behaviour and a snapshot is cheaper than a description.
 - Anything that exists for coverage. Coverage finds code nobody has executed;

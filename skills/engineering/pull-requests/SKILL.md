@@ -129,9 +129,9 @@ report and an abnormal thing to hide.
 
 - **One reason per pull request.** A refactor and a behaviour change do not
   travel together; split them so each can be reviewed, reverted, and bisected
-  alone. Two pieces travel together only when either landing alone is a known
-  regression; then they are separate commits, and the description names the
-  intermediate state that must not ship.
+  alone. Keep two pieces in one pull request only if either one alone would
+  make things worse. Then put them in separate commits, and say in the
+  description that the first commit on its own must not ship.
 - **Aim under a couple of hundred changed lines** where you can. Review quality
   collapses past that; the reviewer skims without admitting it.
 - **Refactor, then test, then change, as separate commits.** Extract the logic
@@ -240,12 +240,12 @@ accepting them:
   two run at once?**
 - Does this point a dependency the wrong way, or reach past a boundary?
 - Does it put a rule in a layer that does not own it?
-- **Did a refactor quietly narrow a lock, a scope, a guard, or the bookkeeping
-  around a call?** The classic thing a diff does not make obvious: *"this
-  returns the pinned items but no longer holds the list lock, where before we
-  held it for the whole loop."* When two implementations merge, list what each
-  old path did before, after, on error, and on panic; the same body is not the
-  same behaviour.
+- **Did a refactor quietly drop a lock, a guard, or the small steps around a
+  call?** The classic thing a diff does not make obvious: *"this returns the
+  pinned items but no longer holds the list lock, where before we held it for
+  the whole loop."* When two copies of some logic are merged into one, write
+  down what each old copy did before, after, on error, and on panic. The same
+  main code does not mean the same behaviour.
 - Is there state that exists only to serve a speculative accessor? Delete the
   state, the accessor, and the code that maintained it.
 - Is an obligation repeated at every call site instead of encapsulated once?
@@ -265,8 +265,8 @@ accepting them:
   the need for one?
 - Does the safety comment justify, or merely restate which operations are
   called?
-- Does this accidentally offer an internal as a promise, through an export
-  path, the docs, a compiler suggestion, or a generated path?
+- Does this make something internal look public? It can leak through an
+  export, the docs, a compiler's "did you mean" hint, or generated code.
 - Does the build see this change the way you do? A file outside the watched
   tree, an import that breaks tree shaking.
 - Is the claim in the description true?

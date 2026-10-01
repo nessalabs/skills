@@ -36,10 +36,10 @@ for all inputs**, and let a generator attack it.
 
 - **Round-trip**: parse, print, parse again; the two structures are equal.
 - **Differential**: two implementations of one contract agree. A fast path and
-  a reference path; an optimised strategy and the naive one. When a change
-  claims compatibility with an existing tool, that tool is the oracle: run the
-  same cases through both, normalise presentation, and freeze the
-  disagreements as local tests.
+  a reference path; an optimised strategy and the naive one. If you claim to
+  behave like an existing tool, use that tool as the answer key: run the same
+  inputs through both, ignore formatting differences, and turn every
+  disagreement into a test of your own.
 - **Invariant**: the module's stated guarantee, asserted after every operation.
 - **Never panics, never hangs** on arbitrary input, for anything reading data
   you do not control.
@@ -177,13 +177,13 @@ different things. Correlation from bisection is useful and is not root cause.
 An approval proves that someone approved. A closed proposal does not prove its
 design was rejected. Say which you have, and do not upgrade one into another.
 
-**Check the property at the level it is claimed.** A guarantee at one stage
-is not a guarantee of the composition. A bounded stage says nothing about the
-pipeline it drains into; a generator that builds says nothing about the code
-it emits; a dropped handle says nothing about the owner that holds the
-resource; a fast path that compiled in says nothing about the runtime that
-will run. Name the level the promise is made at, and test there rather than
-where it is easiest to show.
+**Test the promise where it is made, not where it is easy.** One part working
+does not mean the whole thing works. A small queue says nothing if it empties
+into an unlimited one. A macro crate that builds says nothing about whether
+the code it writes builds for users. Dropping your handle says nothing about
+whether the task holding the resource stopped. A feature that compiled says
+nothing about whether it is there when the program runs. Ask where the promise
+is actually made, and test there.
 
 **Do not re-run a flake.** When a test fails intermittently, reconstruct the
 interleaving that produces the observed value and explain why it is now
