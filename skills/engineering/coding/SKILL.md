@@ -86,6 +86,56 @@ capability that should be composed on top rather than absorbed into the middle.
 The exceptions and the reasoning are in
 [`system-architect`](../system-architect/SKILL.md#6-small-core-composable-pieces).
 
+### Contracts and state transitions
+
+Apply this to every new or changed use case, including UI actions, background
+work, persistence, and messages between systems. Define what the operation
+accepts, what must already be true, what must remain true, and what each output
+guarantees: its inputs, preconditions, invariants, and postconditions.
+
+**Check meaning as well as shape.** A well-formed message can still belong to
+another owner, request, or generation, or arrive in a state that cannot accept
+it. Name the authoritative validator and transition owner. Route each entry
+path through that owner; callers consume its decision rather than reimplement
+the check. Validate a returned result against the request and state it came
+from before allowing it to change current state.
+
+**Write the transitions before implementing them.** For a flow with meaningful
+intermediate states, use a table in its existing design document or module
+contract: current state, event/input, guard, effects, next state, and returned
+outcome. Include applicable refusal, interruption, retry, and uncertain-effect
+paths. A sequence diagram shows messages and order; the table defines what each
+step may do. Update the contract when adding a state or ordering. A simple
+operation can express this through its signature, API documentation, and tests;
+it does not need a state-machine framework or a new ADR.
+
+**Keep decisions separate from effects.** Where practical, a pure step takes
+the current state and event and returns a validated next state and intended
+effects, or a typed refusal. Orchestration performs the effects and feeds their
+observed outcomes back to the owner. Define the point at which state becomes
+visible or durable, and what remains authoritative if an effect fails or its
+outcome is unknown. Each intermediate state must have an honest meaning.
+
+**Prefer sequential work with one writer per consistency boundary.** Concurrent
+work needs a concrete reason, such as responsiveness or independent I/O. Name
+the protected state, synchronization mechanism, critical section, acquisition
+order where several locks exist, and ownership through cancellation and
+failure. An async function can interleave at an await even on one thread;
+revalidate assumptions there or retain explicit exclusive ownership. Independent
+processes need their own transaction or protocol guarantee; a local mutex does
+not protect remote state. Language-specific mechanics remain in the references.
+
+**Prove the contract through observable behavior.** Map the transition cases to
+tests, including valid inputs, invalid combinations, and applicable failure
+orderings. Assert the output and resulting authoritative state, including what
+stays unchanged on refusal. Use controlled scheduling for competing events;
+the testing method remains in [testing](references/testing.md).
+
+Apply this prospectively and improve existing boundaries as they are touched.
+If conformance requires a substantial unrelated refactor, document the affected
+contract, remaining gap, and concrete follow-up in the change rather than
+silently claiming conformance or expanding it into an app-wide rewrite.
+
 ## 2. While writing
 
 **Write the smallest thing that makes the requirement true.** Not the
@@ -259,6 +309,11 @@ The questions to ask are the reviewer's questions in
 one to ask first of your own work: **is the claim in my description actually
 true?** Walk the interrupted, repeated, and re-entered paths yourself rather
 than accepting your own answer.
+
+For changed behavior, identify the [contract](#contracts-and-state-transitions),
+its enforcing code, and the tests that exercise its transitions. Missing input,
+state, output, or concurrency guarantees are review findings; record any deferred
+legacy work under that section's adoption rule.
 
 ## 8. Finishing and reporting
 
