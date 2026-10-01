@@ -148,10 +148,12 @@ why it is safe. For plugin code you cannot see inside, the plugin must declare
 the properties the optimiser relies on (same input gives same output, no side
 effects, works row by row), and those flags are saved along with it.
 
-**A cache key must include everything that changes the result.** Work the key
-out from the finished output itself where you can, rather than from a list of
-fields someone has to keep up to date. Leave out things that only say *where*
-it is (file paths, file names). Any mode that changes what gets built (coverage,
+**A cache key must include everything that changes the result.** A key that
+decides whether to skip the work is built from the inputs, since the output does
+not exist yet; list every input that changes it. Where one step's output is the
+next step's input, fingerprint that output itself rather than a list of fields
+someone has to keep up to date. Leave out things that only say *where* it is
+(file paths, file names). Any mode that changes what gets built (coverage,
 debug, instrumentation) must be part of the key, checked by the cache itself,
 not left to callers to remember. Test both ways: changes that must give a new
 key, and changes that must not.
@@ -232,10 +234,11 @@ the call is acceptable only when re-entry is impossible by a local, durable
 guarantee, not by convention.
 
 **Only queue what has to wait.** A one-at-a-time queue says "this depends on
-what came before". Keep something in it only if that is true. Reading a fixed
-item by its id can skip the queue; asking "what is the current state?" must
-wait its turn. Anything that skips the queue still counts against the shared
-limit.
+what came before". Keep something in it only if that is true. Reading an item
+that can never change, by its id, can skip the queue. If anything earlier in
+the queue could still update or delete that item, the read must wait its turn,
+and so must "what is the current state?". Anything that skips the queue still
+counts against the shared limit.
 
 **Encode the concurrency contract in type names.** A single shared buffer
 exposed as two types (producer handle, single thread; consumer handle, any

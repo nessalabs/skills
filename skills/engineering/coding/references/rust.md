@@ -191,12 +191,15 @@ registry and release, or queue mutations and replay after. Holding across the
 call is acceptable only when re-entry is impossible by a local, durable
 guarantee. Where an operation must happen under the lock, check the actual
 mutex wrapper's behaviour on panic, and drop the replaced value after
-unlocking. Which of these you can do is decided by the callback's signature. If
-plugins get `&mut self` or `FnMut`, the framework must hold a lock while it
-calls them one at a time. If they get `&self` and `Fn + Sync`, the framework
-can copy the list, let go of the lock, then call them, and each plugin handles
-its own locking. Switching later breaks every plugin, so choose before you
-ship. Silently skipping a callback because `try_lock` failed is not a fix.
+unlocking. The callback's signature shapes which of these is open to you. With
+`&mut self` or `FnMut`, calls must happen one at a time, and the framework has
+to arrange that without calling plugin code under the registry lock: take the
+callback out, release, call it, put it back, or run calls through one owner or
+queue. With `&self` and `Fn + Sync`, stored as `Arc`s so the list is cheap to
+copy, the framework can copy the list, release the lock, then call each one,
+and each plugin handles its own locking. Switching later breaks every plugin,
+so choose before you ship. Silently skipping a callback because `try_lock`
+failed is not a fix.
 
 **A callback that may run on another thread should only touch thread-safe
 data.** Move just the few fields it needs into an `Arc` with atomics. Leave the
