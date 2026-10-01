@@ -36,7 +36,13 @@ for all inputs**, and let a generator attack it.
 
 - **Round-trip**: parse, print, parse again; the two structures are equal.
 - **Differential**: two implementations of one contract agree. A fast path and
-  a reference path; an optimised strategy and the naive one.
+  a reference path; an optimised strategy and the naive one. If you claim to
+  behave like an existing tool, use that tool as the answer key: run the same
+  inputs through both, ignore formatting differences, and turn every
+  disagreement into a test of your own. Two formulas equal on paper can round
+  differently (`(a / n) * s` and `a * s / n`), so pick inputs at the rounding,
+  overflow, cast, and null edges, and either share one order of operations or
+  state the tolerance.
 - **Invariant**: the module's stated guarantee, asserted after every operation.
 - **Never panics, never hangs** on arbitrary input, for anything reading data
   you do not control.
@@ -167,12 +173,23 @@ shape:
   reported." That sentence lets everyone else decide whether they are affected;
 - for a regression, the commit that introduced it, by hash and subject.
 
+Once you know the mechanism, look for it on the neighbouring paths. The same
+mistake usually lives wherever the same code was copied.
+
 **Know what class of evidence you hold.** A written policy, a reviewer's
 request, a configured CI job, a job that actually passed, a bisection showing
 that toggling one call changes the symptom, and your own reproduction are
 different things. Correlation from bisection is useful and is not root cause.
 An approval proves that someone approved. A closed proposal does not prove its
 design was rejected. Say which you have, and do not upgrade one into another.
+
+**Test the promise where it is made, not where it is easy.** One part working
+does not mean the whole thing works. A small queue says nothing if it empties
+into an unlimited one. A macro crate that builds says nothing about whether
+the code it writes builds for users. Dropping your handle says nothing about
+whether the task holding the resource stopped. A feature that compiled says
+nothing about whether it is there when the program runs. Ask where the promise
+is actually made, and test there.
 
 **Do not re-run a flake.** When a test fails intermittently, reconstruct the
 interleaving that produces the observed value and explain why it is now

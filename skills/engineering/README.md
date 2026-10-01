@@ -60,6 +60,7 @@ files disagree, the owner is right and the other is a bug. The owners:
 | The problem-solving loop; failure-first checklist; performance method; reporting | `coding` |
 | What to test, how, and what not to; test seams; model-test conditions | `coding/references/testing.md` |
 | Language-specific thinking and practice | `coding/references/<language>.md` |
+| The core rules (one authority per fact; a check only holds for what it looked at) and their examples | `system-architect` §1 |
 | Design decisions, boundaries, core, invariants, authority-shaped state | `system-architect` |
 | Layout, absences, process boundaries, architecture map | `system-architect/references/structure.md` |
 | Concrete techniques: seams, gating, accelerators, concurrency protocols | `system-architect/references/patterns.md` |
@@ -101,14 +102,19 @@ what the skill covers *and* when to use it. Add the path to `skills` in
 
 ## Adding a lesson
 
-1. Find the owner in the table above and put it there, in the surrounding
+1. Ask which [core rule](./system-architect/SKILL.md#core-rule-1-every-fact-has-one-authority)
+   the lesson is an example of first: one fact with two places in charge, or
+   a check trusted beyond what it looked at. If one fits, add a row to that
+   rule's table, with a link to the detail. A lesson becomes a new principle
+   only when no row fits.
+2. Find the owner in the table above and put it there, in the surrounding
    voice, at the same length as its neighbours. A rule that takes a paragraph
    reads as more important than the ones around it, and it rarely is.
-2. If an existing rule is too absolute, amend that rule; do not append an
+3. If an existing rule is too absolute, amend that rule; do not append an
    exception beside it and leave the absolute version authoritative.
-3. State the applicability and the exception in the rule itself, so it reads
+4. State the applicability and the exception in the rule itself, so it reads
    as a probe rather than a ban.
-4. Where another file would benefit from knowing, add one sentence and a
+5. Where another file would benefit from knowing, add one sentence and a
    link, never a restatement.
-5. Put the source, the cost it was learned at, and the measurements in the
+6. Put the source, the cost it was learned at, and the measurements in the
    pull request description.

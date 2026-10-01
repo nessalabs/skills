@@ -129,14 +129,17 @@ report and an abnormal thing to hide.
 
 - **One reason per pull request.** A refactor and a behaviour change do not
   travel together; split them so each can be reviewed, reverted, and bisected
-  alone.
+  alone. Keep two pieces in one pull request only if either one alone would
+  make things worse. Then put them in separate commits, and say in the
+  description that the first commit on its own must not ship.
 - **Aim under a couple of hundred changed lines** where you can. Review quality
   collapses past that; the reviewer skims without admitting it.
-- **Refactor, then test, then change, as separate commits.** Extract the logic
-  so it is reachable from a test ("no functional change"). Add tests whose
-  recorded output captures current behaviour, *including the parts that are
-  wrong*. Then change the behaviour, so the last diff is a precise list of what
-  changed.
+- **Pin the current behaviour before you change it, as separate commits.** If
+  a test can already reproduce the behaviour or the failure, land that test
+  first and refactor under it. If not, first extract the logic so a test can
+  reach it ("no functional change"), then add tests whose recorded output
+  captures current behaviour, *including the parts that are wrong*. Then change
+  the behaviour, so the last diff is a precise list of what changed.
 - **Land structural work ahead of the feature that needs it, alone.** A
   refactor motivated by a capability that does not exist yet is reviewable on
   its structure and revertible for free. Bundled with the feature it is
@@ -238,9 +241,12 @@ accepting them:
   two run at once?**
 - Does this point a dependency the wrong way, or reach past a boundary?
 - Does it put a rule in a layer that does not own it?
-- **Did a refactor quietly narrow a lock, a scope, or a guard?** The classic
-  thing a diff does not make obvious: *"this returns the pinned items but no
-  longer holds the list lock, where before we held it for the whole loop."*
+- **Did a refactor quietly drop a lock, a guard, or the small steps around a
+  call?** The classic thing a diff does not make obvious: *"this returns the
+  pinned items but no longer holds the list lock, where before we held it for
+  the whole loop."* When two copies of some logic are merged into one, write
+  down what each old copy did before, after, on error, and on panic. The same
+  main code does not mean the same behaviour.
 - Is there state that exists only to serve a speculative accessor? Delete the
   state, the accessor, and the code that maintained it.
 - Is an obligation repeated at every call site instead of encapsulated once?
@@ -260,7 +266,8 @@ accepting them:
   the need for one?
 - Does the safety comment justify, or merely restate which operations are
   called?
-- Does this accidentally document an internal as a promise?
+- Does this make something internal look public? It can leak through an
+  export, the docs, a compiler's "did you mean" hint, or generated code.
 - Does the build see this change the way you do? A file outside the watched
   tree, an import that breaks tree shaking.
 - Is the claim in the description true?

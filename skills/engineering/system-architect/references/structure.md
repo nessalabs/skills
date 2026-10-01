@@ -45,7 +45,7 @@ way, that is the review comment, before correctness, before style.
 - No `utils`, `helpers`, `common`, `shared`, `core`, `types`, `misc`. If you
   cannot name a module after what it *is*, you have not found the concept.
 - One canonical import path per item. No re-exports creating a second route.
-- Flat beats nested.
+- Flat by default (see [§7](../SKILL.md#7-structure)).
 
 ## The absences
 
@@ -99,16 +99,27 @@ worker and a page) rots silently unless these hold.
 - **Everything crossing the seam is an explicit message**, never shared state.
 - **Preserve the natural representation.** Bytes that are already bytes do not
   become text and back because the convenient channel takes text. Text may be
-  the correct stable contract; accidental amplification is what to avoid.
+  the correct stable contract; accidental amplification is what to avoid. A
+  middle layer that only understands some messages passes the rest on exactly
+  as it got them. Re-encoding them through its own smaller format drops
+  whatever it did not know about.
 - **Guard the seam so the far side can run without the near one**, if that is
   a supported mode. It is worth a build-matrix job, because it breaks quietly.
 - **Validate at the boundary, then trust inwards.** Parse untrusted input into
   a domain type once, at the edge.
 - **Pass the first payload in.** State the far side needs to do its first
   useful work arrives with it, not as a round trip afterwards.
-- **Authority travels with the message, not with a guessable id.** A response
-  queue, a session table, or a resource map shared across principals is keyed
-  by the principal first.
+- **Who sent it travels with the message, not with a guessable id, and not
+  with where it came from.** A response queue, a session table, or a resource
+  map shared across principals is keyed by the principal first. "It came from
+  localhost" only tells you the route, not who is asking: any web page or
+  other program on the machine can reach localhost too. Every way into the
+  service, fallbacks and upgrades included, runs the same check.
+- **Private calls between packages released separately are still an API.**
+  If code in one package (often generated code) calls private parts of
+  another, and users can upgrade them at different times, use only the public
+  API or put a version on the private one. Then a mismatch fails when building,
+  instead of silently calling the wrong thing.
 
 ## Growing a new context
 

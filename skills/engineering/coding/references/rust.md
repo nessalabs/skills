@@ -34,6 +34,12 @@ in a comment at the declaration, numbered so review can cite it.
 not an error path; it is a normal exit that runs no code after the current
 await. Every async function is designed for being dropped there.
 
+**Every `?` is a way out of the function, and so is every panic.** If
+something must happen on the way out (free a handle, bump a counter, flush,
+record a time), either do it before the first `?` or put it in a guard whose
+`Drop` does it. If you rely on remembering it on every path, the error path is
+the one that forgets.
+
 **A promise made with `unsafe` is a proof over the whole safe API.** Marking
 something `Send`, `Sync`, or sound is a claim about every safe operation
 reachable from that type, now and after the next refactor, not about the fields
@@ -80,7 +86,13 @@ copy".
 **A field with an invariant is private and enforced in the constructor.** If
 any value is legal, make it public. If not, document the rule, make it private,
 and enforce it in the one function that can build the type. The invariant is
-then verified by reading one file.
+then verified by reading one file. Giving out `&mut` to the inside breaks this
+just as a public field would. `DerefMut`, `AsMut`, a `&mut Inner` getter, or a
+mutable iterator lets the caller do *anything* the inner type allows. Say a
+wrapper promises its list stays sorted: `DerefMut` to the `Vec` lets anyone
+`push` and unsort it. Only offer `&mut` if every change it allows keeps the
+promise. Otherwise expose just the safe operations, and put raw access behind
+`unsafe`, saying which change would break it.
 
 **Do not invent a postcondition the producer never promised.** A range handed
 into a matcher or decoder is not a bound on what comes back; with look-around
@@ -101,12 +113,31 @@ that with `NonZero*` or an offset representation. `Option<T>` becomes free and
 an illegal state becomes impossible.
 
 **Do not let a rare case fatten a shared type.** A large, rarely used variant
-or field is paid for by every instance. Box it, or move it to a structure only
-the rare path carries.
+or field is paid for by every instance. The same goes for a pool where every
+slot is as big as the biggest thing that might go in it: one huge future
+makes every slot huge. Box it, or move it to a structure only the rare path
+carries, and add a compile-time check on the size so it cannot quietly grow
+back.
 
 **Size matters when the count is large.** For a type with millions of
 instances, its byte size *is* the memory profile. Count the bytes, pack where
-the win is real, and document the layout at the declaration.
+the win is real, and document the layout at the declaration. Before packing,
+look for fields that are the same for every instance under one owner: move
+them into one shared context the instances point to, and compute what can be
+derived. Pin the size with a `size_of` assertion so adding a field is a
+deliberate choice.
+
+**Cloning an `Arc<Mutex<_>>` shares the state; it does not copy it.** When a
+type that derives `Clone` holds one, decide per field whether copies are meant
+to share it or each needs its own. Two copies of a plan that share one cache
+will overwrite each other's answers. Test it by making two copies, using them
+differently, in both orders.
+
+**A private field still shapes public facts.** Whether the type is `Send`,
+`Sync`, or `Unpin`, its size, and whether `Option<T>` costs extra space are all
+worked out from its fields, and debuggers and snapshot tests read the layout.
+Before swapping a field's type, check each of these and keep or deliberately
+change each one.
 
 ## Allocation
 
@@ -138,6 +169,9 @@ copied per instantiation; move the part that does not depend on the type
 parameter into a private non-generic function behind a thin shim. Binary size
 and instruction cache improve. Compile time usually does but not always, so
 report build wall and CPU time alongside the size win rather than assuming.
+A generic wrapper used everywhere can make the compiler re-prove traits such
+as `Send` at every use; when builds are slow or memory-hungry, profile the
+compiler, because a few concrete types can be far cheaper.
 
 **Make helper types generic over the minimum.** A combinator generic over the
 *input* type rather than the *item* type it handles multiplies across every
@@ -154,7 +188,11 @@ construction, slow-path refills, and panics keep them out of every call site.
 
 **`#[inline]` on small leaf implementations that cross a crate boundary.**
 Without it a downstream crate cannot inline them and loses bounds-check elision
-at every call site. Do not scatter it elsewhere.
+at every call site. Do not scatter it elsewhere. Forcing a shared helper to
+inline to speed up one caller makes *every* caller bigger. Prefer a quick
+check in the one caller that needs it. If you do force it, measure an ordinary
+caller too, not just the one you were fixing. A codegen test should check the
+generated code's shape, not the name of some helper.
 
 ## Concurrency
 
@@ -167,12 +205,28 @@ the only place that information can exist.
 `Clone`, a `Display` run under a non-reentrant lock can re-enter you, block on
 you, or panic mid-transition. Before dispatching, draw the cycle: held resource
 → callback → public APIs it can reach → resources they acquire, including your
-own wrappers such as a one-shot listener that removes itself. Snapshot the
-registry and release, or queue mutations and replay after. Holding across the
-call is acceptable only when re-entry is impossible by a local, durable
-guarantee. Where an operation must happen under the lock, check the actual
-mutex wrapper's behaviour on panic, and drop the replaced value after
-unlocking.
+own wrappers such as a one-shot listener that removes itself. Count a foreign
+runtime's global lock (an interpreter lock, a UI main thread) as one of those
+resources: thread A holds your lock and calls into the interpreter while thread
+B holds the interpreter lock and waits for yours, and neither can move. Snapshot
+the registry and release, or queue mutations and replay after. Holding across
+the call is acceptable only when re-entry is impossible by a local, durable
+guarantee. Where an operation must happen under the lock, check the actual mutex
+wrapper's behaviour on panic, and drop the replaced value after unlocking. The
+callback's signature shapes which of these is open to you. With `&mut self` or
+`FnMut`, calls must happen one at a time, and the framework has to arrange that
+without calling plugin code under the registry lock: take the callback out,
+release, call it, put it back, or run calls through one owner or queue. With
+`&self` and `Fn + Sync`, stored as `Arc`s so the list is cheap to copy, the
+framework can copy the list, release the lock, then call each one, and each
+plugin handles its own locking. Switching later breaks every plugin, so choose
+before you ship. Silently skipping a callback because `try_lock` failed is not a
+fix.
+
+**A callback that may run on another thread should only touch thread-safe
+data.** Move just the few fields it needs into an `Arc` with atomics. Leave the
+rest (`Cell`s, handles, timers that belong to one thread) where they are. Do
+not make the whole struct `Send` or `Sync` just to make the callback compile.
 
 **A manual `unsafe impl Send` or `Sync` is a transitive proof.** Enumerate every
 way the inner state can escape through safe code: `Clone`, public fields and
@@ -197,6 +251,14 @@ owner that returns the resource and the transition that makes the waiter
 runnable. In a manually polled test, assert the future was *woken* before
 polling it again; a forced poll hides exactly this bug.
 
+**A hand-written poll loop can go wrong two ways.** Every place it returns
+`Pending` needs something that will wake it again, or it sleeps forever. Every
+place it loops straight back needs real progress to be possible, or it spins.
+A flush that keeps returning `Ready` while the actual write is still `Pending`
+is not progress; looping on it burns a whole core. Test both: a stream that
+only becomes ready when polled, and one whose flush is always ready while its
+write never is.
+
 **Construct the whole worker set before starting any of it.** A factory that
 panics partway leaves an active count including participants that never
 existed. Test the panic at the first, middle, and last position.
@@ -206,11 +268,16 @@ generous on four cores serialises on thirty-two. Size from available
 parallelism where that is the right envelope, and say what the extra slots
 cost.
 
-**Splitting a lock is a protocol change.** Write the old and new ownership maps
-side by side, then list the orderings the single lock gave you for free:
-admission against shutdown, publication against sleeping, last worker exiting
-against new work arriving. Proving each shard thread-safe says nothing about
-those. Details in
+**Changing how a field is protected is a protocol change**, in either
+direction: splitting a lock, weakening an atomic ordering, or turning an atomic
+into a plain field because a lock now covers it. Write the old and new
+ownership maps side by side, then list the orderings the old protection gave
+you for free: admission against shutdown, publication against sleeping, last
+worker exiting against new work arriving. Proving each shard thread-safe says
+nothing about those. A weaker ordering must hold for every reader, including
+code elsewhere that reads a *different* atomic after this one tells it to look.
+Before removing an atomic, check that every access, `Drop` included, really
+holds the lock. Details in
 [patterns](../../system-architect/references/patterns.md#concurrency-and-failure).
 
 **Route synchronisation primitives through one internal module** that
@@ -224,9 +291,13 @@ capacity constants under that flag so it terminates.
 attributed to the caller, and collect the tests asserting it in one place so
 the panic surface is reviewable as a set.
 
-**Convert internal arithmetic failures into documented ones.** Check the
-boundary explicitly and panic with a message naming the parameter, rather than
-letting an overflow deep in a constructor produce something incomprehensible.
+**Decide what an overflow means before turning it into a panic.** Use checked
+arithmetic at the boundary. If the input breaks the API's rule, reject it there
+with a documented panic or error naming the parameter, rather than letting an
+overflow deep in a constructor produce something incomprehensible. If the input
+is valid but your internal type cannot hold the result, map it to a state the
+contract allows: a timeout too large for the clock means "wait forever", not a
+panic. Your integer range must not quietly decide what the API accepts.
 
 **Guard the algorithm's forbidden inputs at construction.** A zero seed, an
 empty set where the loop assumes one element: reject them where the value is
@@ -234,7 +305,19 @@ built.
 
 **Order the fallible step before you are holding something that needs
 cleanup.** Any call that can panic between "took ownership" and "stored it
-safely" is a leak or a double free waiting to happen.
+safely" is a leak or a double free waiting to happen. If the API makes you get
+the handle first, wrap it right away in something that frees it on drop (an
+`OwnedHandle`, an `OwnedFd`, or a small `Drop` type that calls the C free
+function). Do the risky steps while it is wrapped, and unwrap only at the very
+end when you hand it over. Only wrap handles you own, never borrowed ones.
+Before turning a field from a C or OS API into a Rust reference, string, or
+slice, check whether the docs say it can be null.
+
+**If a type stops cleaning up after itself, someone else has to.** When you
+take out of an inner type the thing it needed to clean up, the nearest outer
+type that has it must do the cleanup in its `Drop`. Any lower method that could
+skip that cleanup becomes private, or `unsafe` with a comment saying what the
+caller must do.
 
 **`Drop` cannot break a cycle that prevents `Drop`.** When bridging to another
 ownership system (Objective-C, C++, OS callbacks), draw both sets of edges. If a
@@ -248,7 +331,14 @@ memory climbing over minutes) is the symptom; count retained handles alongside
 CPU.
 
 **Prefer early returns.** `let Some(x) = .. else { return }` and `?` keep the
-happy path at one indentation level.
+happy path at one indentation level. But not past bookkeeping that must happen
+on every run, such as "record when this last ran": save the result, do the
+bookkeeping, then return the result. Or put the bookkeeping in a guard.
+
+**Let callers ask an error for its details directly.** If a file path, a depth,
+or a location can each be attached to an error, give the error methods like
+`.path()`. Do not make callers unwrap layers in a particular order to find
+them. Only nest errors when one really caused the other.
 
 ## Async
 
@@ -258,7 +348,9 @@ caller waits belongs in a spawned task.
 
 **Say what happens on cancellation.** Any `async fn` that can be dropped
 mid-way documents whether partial work is visible, and every `select!` arm is a
-cancellation point.
+cancellation point. If a spawned task now owns the work, dropping your handle
+to it does not stop it; it has to be told. See
+[`system-architect`](../../system-architect/SKILL.md#9-failure-and-invariants-first).
 
 **Say when output becomes observable.** Anything with `flush`, line buffering,
 or incremental delivery in its vocabulary has a latency contract as well as a
@@ -270,9 +362,15 @@ shared, the bound lives at the lowest owner every entry path traverses, as a
 semaphore or an admission queue, and the caller's window shapes latency on top
 of it. Test a second entry path, and that cancellation returns capacity.
 
-**Never block in async context.** Filesystem calls, heavy computation, and
-synchronous locks held across an `await` stall the executor. Move them to a
-blocking pool, and ask "does this ever block?" of every new dependency.
+**Never block a thread that other work is waiting on.** That means async
+workers, but also UI and event-loop callbacks, even when the callback is a
+plain non-async function. One slow file read there freezes every window.
+Move slow work (file access, heavy computation, waiting on a lock) to a
+blocking pool. If the API gives you a "respond later" handle, hand the work
+off, return straight away, and answer when it is done. Ask "does this ever
+block?" of every new dependency. Never wait by freezing the very loop that has
+to tell you the wait is over; if you cannot pause there, return an error
+instead.
 
 **Do not hold a lock across an `await`.** It converts a fast mutex into a
 source of deadlock.
@@ -288,8 +386,26 @@ The rules are in [testing](testing.md). What Rust adds:
   sanitisers, the exhaustive concurrency checker, a fuzzer for anything parsing
   untrusted input, and a semver check on the public interface. Each answers one
   question.
-- **Build the feature powerset and the minimum toolchain.** It is the only way
-  to know that optional capabilities are actually optional.
+- **Build every feature combination, the oldest supported Rust, and fresh
+  dependencies.** It is the only way to know optional features really are
+  optional. If there are too many combinations, at least build each feature on
+  its own with defaults off. Check the oldest Rust version for *each published
+  crate*: a library that inherits the workspace's setting can quietly require
+  a newer Rust from its users. A passing build on an old version shows that
+  version works, not that nothing older does. Your lockfile is only one of the
+  dependency sets your users might end up with, so also build without it.
+- **A macro is a small compiler; test the code it writes.** Compile what the
+  macro produces on the oldest Rust and the editions your users have, not just
+  the macro crate itself. Test by actually calling the macro, because pasting
+  its expanded output into a file loses edition and naming details. If the
+  macro expands differently per platform, test each different version. If the
+  generated code calls private parts of a companion crate, use only its public
+  API or version the private one, so a mismatch fails at build time instead of
+  quietly linking the wrong thing.
+- **Key a mode on what the compiler sees.** A mode that can be switched on
+  several ways (a feature, a `--cfg` flag, an environment variable a hosted
+  builder sets) is keyed to the condition the compiler actually sees, and built
+  each supported way, including from a downstream crate.
 
 ## Performance in Rust
 

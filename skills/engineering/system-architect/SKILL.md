@@ -1,6 +1,6 @@
 ---
 name: system-architect
-description: "How to design and structure a codebase so the next change stays cheap: information ownership, bounded contexts and stable boundaries, separating mechanism from policy, a small core with product capability composed on top, invariants and failure first, authority-shaped state, and why product velocity is a structural property. Domain-driven and opinionated on purpose. Use before writing a new module, before adding a dependency between two parts of a system, when a change starts touching more files than it should, when boundaries or layering are being discussed, or when reviewing anything that spans more than one file."
+description: "How to design and structure a codebase so the next change stays cheap: one authority per fact, information ownership, bounded contexts and stable boundaries, separating mechanism from policy, a small core with product capability composed on top, invariants and failure first, authority-shaped state, and why product velocity is a structural property. Domain-driven and opinionated on purpose. Use before writing a new module, before adding a dependency between two parts of a system, when a change starts touching more files than it should, when boundaries or layering are being discussed, or when reviewing anything that spans more than one file."
 ---
 
 # The System Architect
@@ -53,7 +53,7 @@ Three consequences you accept without arguing:
 
 | | Pillar | In short | Where |
 | --- | --- | --- | --- |
-| 1 | **Information ownership** | Responsibility belongs where the information is. | §2, §4 |
+| 1 | **Information ownership** | Responsibility belongs where the information is; every fact has one authority. | [Core rules](#core-rule-1-every-fact-has-one-authority), §2, §4 |
 | 2 | **Stable boundaries** | Components meet through minimal contracts and know as little about each other as possible. | §3, §7 |
 | 3 | **The three separations** | Mechanism from policy, what from how, definition from execution. | §5 |
 | 4 | **Small core, composable pieces** | Keep the kernel tiny; extend through interfaces, not by growing the middle. | §6 |
@@ -66,6 +66,114 @@ Two things hold the pillars up and are not structural. **Language:** a name
 that does not match the product's word costs more than any of the above,
 because every conversation pays a translation tax (§3). **Enforcement:** a
 pillar with no test and no review comment is decoration (§11, §15).
+
+### Core rule 1: every fact has one authority
+
+Many rules in these skills are the same rule seen from different sides:
+**every fact the system relies on has exactly one place in charge of it.**
+That place creates it, decides it, changes it, checks it, and ends it.
+Everyone else asks that place, or uses what it handed out.
+
+Bugs start when a second place acts as if it were in charge. It guesses
+instead of asking. It keeps its own copy. It runs its own check, or tries to
+fix the value after the fact. Each of these works until the two places
+disagree.
+
+For every fact your change touches, ask:
+
+1. **Who makes it?** Only the place that creates a value can make it right.
+   Repairing it further along is guessing.
+2. **Who decides it?** One function decides. Callers use its answer; they do
+   not repeat the check.
+3. **Where does every path pass?** Put the authority there, so no caller can
+   go around it.
+4. **Who ends it?** Close, cancel, cleanup, and "exactly once" belong to
+   whoever owns the thing *now*. When ownership moves, these move with it.
+5. **Where is the promise made?** Test it there, not where it is easiest.
+6. **Are you reading the fact, or a sign of it?** A flush that says "ready", an
+   environment variable that is usually set, a handle that usually exists: a
+   sign that usually comes with the fact will one day show up without it. Ask
+   the authority itself.
+
+Examples. Each row is one bug, the place that should have been in charge, and
+the rule that covers it in detail:
+
+| What went wrong | Who should be in charge | Rule |
+| --- | --- | --- |
+| Two runs each number things from zero, so merging them gives duplicate ids | The code that creates the id | [An id is only unique where it was made](../coding/SKILL.md#3-failure-first) |
+| One caller checks "rebuild needed", another does not, and the screen shows stale data | The one gateway every request passes | [Put a rule where every path has to pass](../coding/SKILL.md#3-failure-first) |
+| A queue of one item empties into an unlimited buffer, and memory grows anyway | The stage that actually holds the item | [A limit only works if the next step really took the item](../coding/SKILL.md#3-failure-first) |
+| Shutdown and the garbage collector both free the same memory | One owner holding a single "I'll do it" claim | [Idempotent, or keyed](../coding/SKILL.md#3-failure-first) |
+| A file at a shared path is deleted, but a newer process had already replaced it | Whoever created that file | [Clean up only what you created](../coding/SKILL.md#3-failure-first) |
+| A late reply from an old request clears what the user just typed | The current request | [Check meaning as well as shape](../coding/SKILL.md#principle-explicit-contracts-and-state-transitions) |
+| Code checks "has a terminal handle" when it means "owns the process" | The fact itself, stored as itself | [Store the real fact](#4-tactical-rules-inside-a-context) |
+| Dropping a handle is expected to stop a background task, and the task keeps running | Whoever holds the resource now | [Hand off the off switch too](#9-failure-and-invariants-first) |
+| A default is copied into a setting; the setting changes later and the copy is stale | One function that picks the winner | [A value picked from several sources](references/patterns.md#derived-state-and-accelerators) |
+| A lookup table outlives the content it points into, and crashes on the new content | The content it was built from | [When the source changes, everything built from it changes too](references/patterns.md#derived-state-and-accelerators) |
+| A request from localhost is trusted, but any web page on the machine can send one | The caller's identity, not the route it took | [Who sent it travels with the message](references/structure.md#rules-for-a-process-or-bundle-boundary) |
+| A macro crate builds on old Rust, but the code it writes for users does not | The place the promise is made: the user's build | [Test the promise where it is made](../method/SKILL.md#2-verifying) |
+| A second layer keeps its own list of valid names, and rejects names added later | The module that parses those names; others call it | [Check meaning as well as shape](../coding/SKILL.md#principle-explicit-contracts-and-state-transitions) |
+| Each output printer counts matches to stop at a limit, and miscounts matches that span lines | The search step, which knows what one match is | [Who has the information](#2-how-you-decide) |
+| A low-level read retries "interrupted" by itself, so a custom reader can no longer use that error to mean something | The operation that promised to finish the whole job | [Mechanism from policy](#5-the-three-separations) |
+| A quick "is the message complete?" check disagrees with the real parser, so the same bytes hang when split differently | The real parser; the quick check only narrows the work | [A shortcut may change speed, never the answer](references/patterns.md#derived-state-and-accelerators) |
+| Data and errors travel on separate channels, and an error overtakes data already accepted | One state holding the order of every signal | [Signals whose order matters are one protocol](references/patterns.md#concurrency-and-failure) |
+| Two copies of a plan share one cache, so filling it for one changes the other's answer | Each copy, for its own derived state | [Cloning an `Arc<Mutex<_>>` shares the state](../coding/references/rust.md#types-and-invariants) |
+| A feature gate sits on one function, but an older allowed wrapper calls it | The point every path passes, usually the type or its constructor | [Both sides of a gate are tested](references/patterns.md#feature-and-capability-gating) |
+| A loop spins forever because flush says "ready" while the real write is still waiting | The real write's own answer | [A hand-written poll loop can go wrong two ways](../coding/references/rust.md#concurrency) |
+| Code checks an environment variable a hosted builder sets, but users can switch the same mode on without it | The condition the compiler actually sees | [Key a mode on what the compiler sees](../coding/references/rust.md#testing-rust-specifics) |
+| A cheaper version of an operation skips a flush the original does, and both sides wait forever | The operation's contract, which every version follows | [A cheaper version keeps the contract](../coding/SKILL.md#5-performance) |
+
+§9's "every invariant has a named enforcer" is this rule applied to
+invariants.
+
+### Core rule 2: a check only holds for what it looked at
+
+Rule 1 asks who decides. This one asks whether the answer still applies.
+**A check, a promise, or a stored fact is only good for the exact thing, the
+moment, and the conditions it was made under.** Use it anywhere else and you
+are trusting something nobody checked.
+
+Bugs start when a "yes" travels. It was checked on a name but used on the
+address the name turned into. It was true when the job was queued but not
+when the job ran. It was judged by one machine's rules and used on another. It
+was true for one copy, one ordering, or one request, and got reused for
+another.
+
+For every check or stored fact your change relies on, ask:
+
+1. **Same thing?** Is what you checked exactly what you use, after any lookup,
+   redirect, or conversion?
+2. **Same moment?** Could it have changed in between: a delay, a queue, an
+   `await`, a re-entry?
+3. **Same rules?** Was it judged by the rules of the place that uses it: the
+   same machine, ordering, units, phase?
+4. **Same scope?** Does it belong to this copy, this request, this user, or
+   did it come along from somewhere else?
+5. **Does the reason still hold?** A lock, a cache, or a shortcut was
+   justified by how things were shared when it was written. When that
+   changes, justify it again.
+
+When the answer is no, check again where it is used, or assume less and take
+the slower, safe path.
+
+| What went wrong | What the check should have covered | Rule |
+| --- | --- | --- |
+| A queued update runs after its target was deleted, and crashes | The target as it is when the work runs, not when it was queued | [What you saw is a clue](../coding/SKILL.md#3-failure-first) |
+| A permission check passes on a host name, which then resolves to a blocked address | The resolved address, at the step that uses it | [Check the thing you will use](../coding/SKILL.md#3-failure-first) |
+| A setting meant for the target machine is checked with the build machine's path rules | The rules of the machine that will read it | [Surrounding settings are inputs](../coding/SKILL.md#3-failure-first) |
+| The first request to fill a shared cache entry leaves its own base path inside, and later requests use the wrong base | Only what is the same for everyone; each request brings its own context | [A cache key must include everything that changes the result](references/patterns.md#derived-state-and-accelerators) |
+| Min and max stored in text order are used to skip data compared as numbers | The ordering the summary was built with | [Write down which way the error may run](references/patterns.md#derived-state-and-accelerators) |
+| Two equal facts are deduplicated, and the copy that said "hidden" is the one dropped | The tag, which is part of the fact | [A tag is part of the fact](#4-tactical-rules-inside-a-context) |
+| An atomic becomes a plain field because "a lock covers it now", but `Drop` reads it without the lock | Every access under today's sharing | [Changing how a field is protected is a protocol change](../coding/references/rust.md#concurrency) |
+| A scheduler runs two steps at once because they talk through a channel it cannot see | Only what the dependency list can see | [Only queue what has to wait](references/patterns.md#concurrency-and-failure) |
+
+### Adding to the core rules
+
+**When you learn a new lesson, ask which core rule it is an example of
+first.** If one fits, add a row to that table and put the detail with the
+owning rule. Only add a new principle when no row fits. When several lessons
+that fit no row keep pointing the same way, name a new core rule with its own
+questions and examples.
 
 ---
 
@@ -159,7 +267,21 @@ reviewer.
 before calling ("only call this if the turn is still streaming"), the check has
 been placed away from the information it depends on and will be forgotten at
 the fourth call site. Give the callee the decision and a return type that says
-what happened.
+what happened. The same goes for "nothing to do": make the empty case cheap
+inside the thing that owns it, rather than making every caller wrap it in an
+`Option` and check.
+
+**Store the real fact, not something that usually comes with it.** If code
+needs to know "do we own this process?", store exactly that. Do not infer it
+from "we have a terminal handle", because one day you will have the handle
+without owning the process, or the other way round. Likewise "can this be
+focused?" is its own fact, not "does it have a tab order?".
+
+**A tag that changes how a fact may be used is part of the fact.** Where it
+came from, who may see it, how certain it is: deduplication, caching, and
+canonical forms must keep the tag. When two equal values with different tags
+meet, a stated rule picks the result ("visible if either is visible"), not
+whichever copy a set happened to keep.
 
 **Invariants live in constructors, not in callers.** If a field can hold any
 value, expose it. If it cannot, make it private, document the invariant, and
@@ -185,7 +307,12 @@ One move, applied at three altitudes.
 scheduler knows how to run things, not which deserve priority; a retrier knows
 how to retry, not what is worth retrying. Fuse them and every product change
 becomes an edit to infrastructure. The test: *can I change this rule without
-touching the machinery, and reuse the machinery under a different rule?*
+touching the machinery, and reuse the machinery under a different rule?* It
+works the other way too: two operations that share the same machinery may
+still need different rules. Output must be flushed at shutdown; waiting for
+input need not be, though both run on the same thread pool. Decide what each
+operation owes, and do not let whichever function was handy (insert versus
+append, must-finish versus try-your-best) decide it for you.
 
 **What from how.** Callers express intent; the system chooses execution.
 "Deliver this reply" is a what; "spawn a task, poll every 50ms, retry three
@@ -238,9 +365,11 @@ understand before I can write anything at all?*
 
 ## 7. Structure
 
-**Flat beats nested.** One level of modules, named exactly what they are. A
+**Flat by default.** One level of modules, named exactly what they are. A
 deep tree encodes a taxonomy you will get wrong and then be too embarrassed to
-change.
+change. Add one more level only where the code already picks between named
+cases (one module per kind of input a generator handles), with the shared
+helpers in the parent. Never add a level just to make a file shorter.
 
 **The folder name is the module name is the concept name.** No aliases, no
 re-exports creating a second path. One name, one location, one import path.
@@ -344,6 +473,12 @@ then its entropy, leakage, revocation, and lifetime are explicit invariants,
 not a substitute for an owner the system already knows. Once the structure
 enforces isolation, delete the security machinery it made redundant.
 
+**When you hand something off, hand off the off switch too.** Once a
+background task or another process owns a resource, "cancel", "close", and
+"reset" have to reach that new owner some explicit way. Dropping your own
+handle only says you no longer care; the new owner keeps going unless someone
+tells it.
+
 **Migrations are a semantic dependency graph.** A later migration depends on
 durable facts, not on an intermediate shape an earlier migration happened to
 introduce. Before changing or deleting migration N, search every later one for
@@ -357,7 +492,8 @@ nobody until they have been hurt. Track such flags as debt. The distinction is
 what the flag hides: covering a design flaw, it is debt; covering the *rollout*
 of a mechanism replacement, it is a seam with a removal date (§6). Reject the
 flag that buys flexibility nobody asked for; keep the one that buys
-reversibility.
+reversibility. A workaround applies only where the problem it works around
+exists; where that problem is gone, remove it.
 
 ---
 
@@ -525,6 +661,8 @@ you say so.
 Before you write:
 
 - [ ] The responsibility sits where the information is.
+- [ ] Every fact this touches has one place in charge, and nothing else
+      guesses, copies, or re-checks it.
 - [ ] I can name the concept in the product's own words.
 - [ ] I know which context owns it and what the invariant is.
 - [ ] Machinery and rules are separable; definition and running state are
@@ -552,6 +690,8 @@ Before you open a change: the list in
 - A caller must check something before it is allowed to call.
 - The description of a thing and the state of running it are the same object.
 - A lookup by id alone can reach state that belongs to someone else.
+- Code checks "has a handle" or "has an index" when what it really wants to
+  know is something else.
 - The only reason something is in the core is that it was easier to put it
   there.
 - Someone says "we'll clean it up later" for the third time about the same
