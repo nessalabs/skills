@@ -102,7 +102,8 @@ stability is made later, deliberately, as its own decision. Otherwise every
 merged feature is an accidental permanent commitment.
 
 **Both sides of a gate are tested, or the gate is a lie.** The build everyone
-runs must be unable to reach the experimental path, and a dedicated CI job
+runs must be unable to reach the experimental path, directly or through any
+existing constructor, conversion, or wrapper, and a dedicated CI job
 must build and test it enabled, from the change that introduces the gate. That
 is what makes developing a large feature on the main branch cheaper than a
 long-lived branch. Give the gate a stabilisation or removal criterion when you
@@ -130,7 +131,11 @@ shortcut fact that lets you skip the real check, like "this list is complete"
 or "nothing changed since". It has to stay true when results are combined
 (merged, either-or, joined, cut short) and when writers arrive out of order.
 If one branch of a merge cannot promise it, the merged result cannot either.
-When you are not sure, promise less.
+When you are not sure, promise less. A summary such as a min and max only holds
+under the ordering, units, and null rules it was built with: bounds stored in
+text order cannot skip data compared as numbers. Treat missing or reversed
+bounds as unknown. And when the real operation corrects a wrong hint, the
+correction must keep final states such as "closed".
 
 **A shortcut may change speed, never the answer.** A hidden fast path does the
 same thing as the normal path by default; overriding it may only make it
@@ -140,20 +145,30 @@ input, do not sort the user's meaningful data to suit it. Have it start over
 when input goes backwards, and keep the strict version for callers who already
 promise the order.
 
-**Only reorder steps when you can say why it is safe.** Moving a filter before
-another step is fine only if you can say why the result is the same.
-"Its inputs still exist there" is not a reason. Anything that depends on order,
-on neighbouring rows, or on a running total blocks the move until you can show
-why it is safe. For plugin code you cannot see inside, the plugin must declare
-the properties the optimiser relies on (same input gives same output, no side
-effects, works row by row), and those flags are saved along with it.
+**Only reorder, replace, or skip steps when you can say why it is safe.** Moving
+a filter before another step is fine only if you can say why the result is the
+same. "Its inputs still exist there" is not a reason, and neither is "it
+benchmarks well" or "the current backend happens to tolerate it". Check overlap,
+evaluation order, and side effects; if that check is expensive, run it after the
+cheap filters pass, but do not weaken it. Anything that depends on order, on
+neighbouring rows, or on a running total blocks the move until you can show why
+it is safe. For plugin code you cannot see inside, the plugin must declare the
+properties the optimiser relies on (same input gives same output, no side
+effects, works row by row), and those flags are saved along with it. If it
+declares nothing, assume the worst and take the normal path. Do not add a
+setting that asks users a question they cannot answer either.
 
 **A cache key must include everything that changes the result.** A key that
 decides whether to skip the work is built from the inputs, since the output does
 not exist yet; list every input that changes it. Where one step's output is the
 next step's input, fingerprint that output itself rather than a list of fields
 someone has to keep up to date. Leave out things that only say *where* it is
-(file paths, file names). Any mode that changes what gets built (coverage,
+(file paths, file names). Or keep that input out of the cached value: share the
+expensive part, and give each request a small handle carrying its own context. A
+shared entry filled by the first request must not keep that request's base path
+or settings inside it. Putting every context into the key also fixes the bug,
+but can destroy the sharing the cache existed for. Test two contexts sharing one
+entry, filled in both orders. Any mode that changes what gets built (coverage,
 debug, instrumentation) must be part of the key, checked by the cache itself,
 not left to callers to remember. Test both ways: changes that must give a new
 key, and changes that must not.
@@ -183,6 +198,9 @@ drift into.
 **A new engine starts compatible with nothing.** When an established feature
 gains a second execution path, classify every existing option combination:
 proven equivalent, falls back, explicitly refused, or deliberately different.
+If the new path remembers things between calls (an incremental or
+one-item-at-a-time mode), also say what context it does not have, when what it
+remembers goes stale, and what input form it assumes.
 Start paranoid and widen with tests. The worst outcome is the unsupported
 combination that returns plausible output, because nobody finds out.
 
@@ -223,7 +241,9 @@ against shutdown, publication against sleeping, the last worker exiting
 against new work arriving). Proving each shard thread-safe says nothing about
 those. Test at low worker counts and small capacities as well as high, race
 submission against shutdown, and assert progress, not merely absence of
-corruption.
+corruption. The reverse holds too: signals sent on separate channels whose
+order matters (data before error, data before end) are one protocol. Keep that
+order in one state that holds every signal, not in timing between channels.
 
 **A callback under a held lock is a protocol, or a bug.** Dispatching to
 listeners while holding the registry lock works until a listener removes
@@ -238,7 +258,10 @@ what came before". Keep something in it only if that is true. Reading an item
 that can never change, by its id, can skip the queue. If anything earlier in
 the queue could still update or delete that item, the read must wait its turn,
 and so must "what is the current state?". Anything that skips the queue still
-counts against the shared limit.
+counts against the shared limit. When a scheduler decides two steps are
+independent from a list of what each touches, write down what the list cannot
+see: atomics, channels, globals, mutation behind a shared reference. Steps
+linked only through those keep their order.
 
 **Encode the concurrency contract in type names.** A single shared buffer
 exposed as two types (producer handle, single thread; consumer handle, any

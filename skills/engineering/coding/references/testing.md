@@ -38,6 +38,11 @@ model proves a property of the model within the schedules it explored; that is
 worth a lot and is not a proof about production. A single-shard model says
 nothing about cross-shard behaviour.
 
+A second exception: the usual client tidies input before it reaches you
+(lowercases, sorts, removes duplicates), so the input that triggers the bug
+never arrives through it. Send the raw input at the lowest real boundary that
+keeps it, check the public result, and say which client step hid the bug.
+
 **Real dependencies over mocks.** Mock only what you cannot run: a third-party
 service, a paid API, hardware you do not have. Mocking your own domain tests
 your mocks. For anything with a local equivalent, use the equivalent.
@@ -80,14 +85,17 @@ that threads, file handles, and memory go back to normal between runs.
 
 **Test with two, not just one.** With one item, you cannot tell "done once per
 item" from "done once in total". A file header written inside the loop looks
-fine with one batch and breaks with two. Use at least two, and check that
+fine with one batch and breaks with two. Use at least two (including two runs
+of the same thing, not only two different things), and check that
 headers, footers, and run-once steps appear exactly once, in the right place.
 
-**The same meaning written differently gives the same result.** Many formats
-let you say one thing several ways: a field repeated or written as a list,
-upper or lower case, a different order. Test that every way gives the same
-answer. When two inputs disagree and one wins, check the losing one is
-removed from what gets passed on, whichever order they came in.
+**The same meaning written differently gives the same result.** Many formats let
+you say one thing several ways: a field repeated or written as a list, upper or
+lower case, a different order. Test that every way gives the same answer,
+including the same bytes arriving in different-sized pieces: split the input at
+every point and check the answer does not change, with near-misses that must
+still count as incomplete. When two inputs disagree and one wins, check the
+losing one is removed from what gets passed on, whichever order they came in.
 
 **Async assertions poll by default.** Sample the observable state until the
 condition holds or a timeout fires. A fixed sleep is either slow or flaky, and

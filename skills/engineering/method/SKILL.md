@@ -39,7 +39,10 @@ for all inputs**, and let a generator attack it.
   a reference path; an optimised strategy and the naive one. If you claim to
   behave like an existing tool, use that tool as the answer key: run the same
   inputs through both, ignore formatting differences, and turn every
-  disagreement into a test of your own.
+  disagreement into a test of your own. Two formulas equal on paper can round
+  differently (`(a / n) * s` and `a * s / n`), so pick inputs at the rounding,
+  overflow, cast, and null edges, and either share one order of operations or
+  state the tolerance.
 - **Invariant**: the module's stated guarantee, asserted after every operation.
 - **Never panics, never hangs** on arbitrary input, for anything reading data
   you do not control.
@@ -169,6 +172,9 @@ shape:
   this can never produce a wrong answer; it is strictly about which span is
   reported." That sentence lets everyone else decide whether they are affected;
 - for a regression, the commit that introduced it, by hash and subject.
+
+Once you know the mechanism, look for it on the neighbouring paths. The same
+mistake usually lives wherever the same code was copied.
 
 **Know what class of evidence you hold.** A written policy, a reviewer's
 request, a configured CI job, a job that actually passed, a bisection showing

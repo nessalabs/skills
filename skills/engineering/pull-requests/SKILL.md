@@ -134,11 +134,12 @@ report and an abnormal thing to hide.
   description that the first commit on its own must not ship.
 - **Aim under a couple of hundred changed lines** where you can. Review quality
   collapses past that; the reviewer skims without admitting it.
-- **Refactor, then test, then change, as separate commits.** Extract the logic
-  so it is reachable from a test ("no functional change"). Add tests whose
-  recorded output captures current behaviour, *including the parts that are
-  wrong*. Then change the behaviour, so the last diff is a precise list of what
-  changed.
+- **Pin the current behaviour before you change it, as separate commits.** If
+  a test can already reproduce the behaviour or the failure, land that test
+  first and refactor under it. If not, first extract the logic so a test can
+  reach it ("no functional change"), then add tests whose recorded output
+  captures current behaviour, *including the parts that are wrong*. Then change
+  the behaviour, so the last diff is a precise list of what changed.
 - **Land structural work ahead of the feature that needs it, alone.** A
   refactor motivated by a capability that does not exist yet is reviewable on
   its structure and revertible for free. Bundled with the feature it is

@@ -121,7 +121,23 @@ back.
 
 **Size matters when the count is large.** For a type with millions of
 instances, its byte size *is* the memory profile. Count the bytes, pack where
-the win is real, and document the layout at the declaration.
+the win is real, and document the layout at the declaration. Before packing,
+look for fields that are the same for every instance under one owner: move
+them into one shared context the instances point to, and compute what can be
+derived. Pin the size with a `size_of` assertion so adding a field is a
+deliberate choice.
+
+**Cloning an `Arc<Mutex<_>>` shares the state; it does not copy it.** When a
+type that derives `Clone` holds one, decide per field whether copies are meant
+to share it or each needs its own. Two copies of a plan that share one cache
+will overwrite each other's answers. Test it by making two copies, using them
+differently, in both orders.
+
+**A private field still shapes public facts.** Whether the type is `Send`,
+`Sync`, or `Unpin`, its size, and whether `Option<T>` costs extra space are all
+worked out from its fields, and debuggers and snapshot tests read the layout.
+Before swapping a field's type, check each of these and keep or deliberately
+change each one.
 
 ## Allocation
 
@@ -153,6 +169,9 @@ copied per instantiation; move the part that does not depend on the type
 parameter into a private non-generic function behind a thin shim. Binary size
 and instruction cache improve. Compile time usually does but not always, so
 report build wall and CPU time alongside the size win rather than assuming.
+A generic wrapper used everywhere can make the compiler re-prove traits such
+as `Send` at every use; when builds are slow or memory-hungry, profile the
+compiler, because a few concrete types can be far cheaper.
 
 **Make helper types generic over the minimum.** A combinator generic over the
 *input* type rather than the *item* type it handles multiplies across every
@@ -186,20 +205,23 @@ the only place that information can exist.
 `Clone`, a `Display` run under a non-reentrant lock can re-enter you, block on
 you, or panic mid-transition. Before dispatching, draw the cycle: held resource
 → callback → public APIs it can reach → resources they acquire, including your
-own wrappers such as a one-shot listener that removes itself. Snapshot the
-registry and release, or queue mutations and replay after. Holding across the
-call is acceptable only when re-entry is impossible by a local, durable
-guarantee. Where an operation must happen under the lock, check the actual
-mutex wrapper's behaviour on panic, and drop the replaced value after
-unlocking. The callback's signature shapes which of these is open to you. With
-`&mut self` or `FnMut`, calls must happen one at a time, and the framework has
-to arrange that without calling plugin code under the registry lock: take the
-callback out, release, call it, put it back, or run calls through one owner or
-queue. With `&self` and `Fn + Sync`, stored as `Arc`s so the list is cheap to
-copy, the framework can copy the list, release the lock, then call each one,
-and each plugin handles its own locking. Switching later breaks every plugin,
-so choose before you ship. Silently skipping a callback because `try_lock`
-failed is not a fix.
+own wrappers such as a one-shot listener that removes itself. Count a foreign
+runtime's global lock (an interpreter lock, a UI main thread) as one of those
+resources: thread A holds your lock and calls into the interpreter while thread
+B holds the interpreter lock and waits for yours, and neither can move. Snapshot
+the registry and release, or queue mutations and replay after. Holding across
+the call is acceptable only when re-entry is impossible by a local, durable
+guarantee. Where an operation must happen under the lock, check the actual mutex
+wrapper's behaviour on panic, and drop the replaced value after unlocking. The
+callback's signature shapes which of these is open to you. With `&mut self` or
+`FnMut`, calls must happen one at a time, and the framework has to arrange that
+without calling plugin code under the registry lock: take the callback out,
+release, call it, put it back, or run calls through one owner or queue. With
+`&self` and `Fn + Sync`, stored as `Arc`s so the list is cheap to copy, the
+framework can copy the list, release the lock, then call each one, and each
+plugin handles its own locking. Switching later breaks every plugin, so choose
+before you ship. Silently skipping a callback because `try_lock` failed is not a
+fix.
 
 **A callback that may run on another thread should only touch thread-safe
 data.** Move just the few fields it needs into an `Arc` with atomics. Leave the
@@ -229,6 +251,14 @@ owner that returns the resource and the transition that makes the waiter
 runnable. In a manually polled test, assert the future was *woken* before
 polling it again; a forced poll hides exactly this bug.
 
+**A hand-written poll loop can go wrong two ways.** Every place it returns
+`Pending` needs something that will wake it again, or it sleeps forever. Every
+place it loops straight back needs real progress to be possible, or it spins.
+A flush that keeps returning `Ready` while the actual write is still `Pending`
+is not progress; looping on it burns a whole core. Test both: a stream that
+only becomes ready when polled, and one whose flush is always ready while its
+write never is.
+
 **Construct the whole worker set before starting any of it.** A factory that
 panics partway leaves an active count including participants that never
 existed. Test the panic at the first, middle, and last position.
@@ -238,11 +268,16 @@ generous on four cores serialises on thirty-two. Size from available
 parallelism where that is the right envelope, and say what the extra slots
 cost.
 
-**Splitting a lock is a protocol change.** Write the old and new ownership maps
-side by side, then list the orderings the single lock gave you for free:
-admission against shutdown, publication against sleeping, last worker exiting
-against new work arriving. Proving each shard thread-safe says nothing about
-those. Details in
+**Changing how a field is protected is a protocol change**, in either
+direction: splitting a lock, weakening an atomic ordering, or turning an atomic
+into a plain field because a lock now covers it. Write the old and new
+ownership maps side by side, then list the orderings the old protection gave
+you for free: admission against shutdown, publication against sleeping, last
+worker exiting against new work arriving. Proving each shard thread-safe says
+nothing about those. A weaker ordering must hold for every reader, including
+code elsewhere that reads a *different* atomic after this one tells it to look.
+Before removing an atomic, check that every access, `Drop` included, really
+holds the lock. Details in
 [patterns](../../system-architect/references/patterns.md#concurrency-and-failure).
 
 **Route synchronisation primitives through one internal module** that
@@ -256,9 +291,13 @@ capacity constants under that flag so it terminates.
 attributed to the caller, and collect the tests asserting it in one place so
 the panic surface is reviewable as a set.
 
-**Convert internal arithmetic failures into documented ones.** Check the
-boundary explicitly and panic with a message naming the parameter, rather than
-letting an overflow deep in a constructor produce something incomprehensible.
+**Decide what an overflow means before turning it into a panic.** Use checked
+arithmetic at the boundary. If the input breaks the API's rule, reject it there
+with a documented panic or error naming the parameter, rather than letting an
+overflow deep in a constructor produce something incomprehensible. If the input
+is valid but your internal type cannot hold the result, map it to a state the
+contract allows: a timeout too large for the clock means "wait forever", not a
+panic. Your integer range must not quietly decide what the API accepts.
 
 **Guard the algorithm's forbidden inputs at construction.** A zero seed, an
 empty set where the loop assumes one element: reject them where the value is
@@ -363,6 +402,10 @@ The rules are in [testing](testing.md). What Rust adds:
   generated code calls private parts of a companion crate, use only its public
   API or version the private one, so a mismatch fails at build time instead of
   quietly linking the wrong thing.
+- **Key a mode on what the compiler sees.** A mode that can be switched on
+  several ways (a feature, a `--cfg` flag, an environment variable a hosted
+  builder sets) is keyed to the condition the compiler actually sees, and built
+  each supported way, including from a downstream crate.
 
 ## Performance in Rust
 

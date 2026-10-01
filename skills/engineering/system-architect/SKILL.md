@@ -53,7 +53,7 @@ Three consequences you accept without arguing:
 
 | | Pillar | In short | Where |
 | --- | --- | --- | --- |
-| 1 | **Information ownership** | Responsibility belongs where the information is; every fact has one authority. | [Core rule](#the-core-rule-every-fact-has-one-authority), §2, §4 |
+| 1 | **Information ownership** | Responsibility belongs where the information is; every fact has one authority. | [Core rules](#core-rule-1-every-fact-has-one-authority), §2, §4 |
 | 2 | **Stable boundaries** | Components meet through minimal contracts and know as little about each other as possible. | §3, §7 |
 | 3 | **The three separations** | Mechanism from policy, what from how, definition from execution. | §5 |
 | 4 | **Small core, composable pieces** | Keep the kernel tiny; extend through interfaces, not by growing the middle. | §6 |
@@ -67,7 +67,7 @@ that does not match the product's word costs more than any of the above,
 because every conversation pays a translation tax (§3). **Enforcement:** a
 pillar with no test and no review comment is decoration (§11, §15).
 
-### The core rule: every fact has one authority
+### Core rule 1: every fact has one authority
 
 Many rules in these skills are the same rule seen from different sides:
 **every fact the system relies on has exactly one place in charge of it.**
@@ -90,6 +90,10 @@ For every fact your change touches, ask:
 4. **Who ends it?** Close, cancel, cleanup, and "exactly once" belong to
    whoever owns the thing *now*. When ownership moves, these move with it.
 5. **Where is the promise made?** Test it there, not where it is easiest.
+6. **Are you reading the fact, or a sign of it?** A flush that says "ready", an
+   environment variable that is usually set, a handle that usually exists: a
+   sign that usually comes with the fact will one day show up without it. Ask
+   the authority itself.
 
 Examples. Each row is one bug, the place that should have been in charge, and
 the rule that covers it in detail:
@@ -108,12 +112,68 @@ the rule that covers it in detail:
 | A lookup table outlives the content it points into, and crashes on the new content | The content it was built from | [When the source changes, everything built from it changes too](references/patterns.md#derived-state-and-accelerators) |
 | A request from localhost is trusted, but any web page on the machine can send one | The caller's identity, not the route it took | [Who sent it travels with the message](references/structure.md#rules-for-a-process-or-bundle-boundary) |
 | A macro crate builds on old Rust, but the code it writes for users does not | The place the promise is made: the user's build | [Test the promise where it is made](../method/SKILL.md#2-verifying) |
+| A second layer keeps its own list of valid names, and rejects names added later | The module that parses those names; others call it | [Check meaning as well as shape](../coding/SKILL.md#principle-explicit-contracts-and-state-transitions) |
+| Each output printer counts matches to stop at a limit, and miscounts matches that span lines | The search step, which knows what one match is | [Who has the information](#2-how-you-decide) |
+| A low-level read retries "interrupted" by itself, so a custom reader can no longer use that error to mean something | The operation that promised to finish the whole job | [Mechanism from policy](#5-the-three-separations) |
+| A quick "is the message complete?" check disagrees with the real parser, so the same bytes hang when split differently | The real parser; the quick check only narrows the work | [A shortcut may change speed, never the answer](references/patterns.md#derived-state-and-accelerators) |
+| Data and errors travel on separate channels, and an error overtakes data already accepted | One state holding the order of every signal | [Signals whose order matters are one protocol](references/patterns.md#concurrency-and-failure) |
+| Two copies of a plan share one cache, so filling it for one changes the other's answer | Each copy, for its own derived state | [Cloning an `Arc<Mutex<_>>` shares the state](../coding/references/rust.md#types-and-invariants) |
+| A feature gate sits on one function, but an older allowed wrapper calls it | The point every path passes, usually the type or its constructor | [Both sides of a gate are tested](references/patterns.md#feature-and-capability-gating) |
+| A loop spins forever because flush says "ready" while the real write is still waiting | The real write's own answer | [A hand-written poll loop can go wrong two ways](../coding/references/rust.md#concurrency) |
+| Code checks an environment variable a hosted builder sets, but users can switch the same mode on without it | The condition the compiler actually sees | [Key a mode on what the compiler sees](../coding/references/rust.md#testing-rust-specifics) |
+| A cheaper version of an operation skips a flush the original does, and both sides wait forever | The operation's contract, which every version follows | [A cheaper version keeps the contract](../coding/SKILL.md#5-performance) |
 
-**When you learn a new lesson, ask which authority it is about first.** If it
-is another case of one fact having two places in charge, add a row here and
-put the detail with the owning rule. Only add a new principle when no row
-fits. §9's "every invariant has a named enforcer" is this rule applied to
+§9's "every invariant has a named enforcer" is this rule applied to
 invariants.
+
+### Core rule 2: a check only holds for what it looked at
+
+Rule 1 asks who decides. This one asks whether the answer still applies.
+**A check, a promise, or a stored fact is only good for the exact thing, the
+moment, and the conditions it was made under.** Use it anywhere else and you
+are trusting something nobody checked.
+
+Bugs start when a "yes" travels. It was checked on a name but used on the
+address the name turned into. It was true when the job was queued but not
+when the job ran. It was judged by one machine's rules and used on another. It
+was true for one copy, one ordering, or one request, and got reused for
+another.
+
+For every check or stored fact your change relies on, ask:
+
+1. **Same thing?** Is what you checked exactly what you use, after any lookup,
+   redirect, or conversion?
+2. **Same moment?** Could it have changed in between: a delay, a queue, an
+   `await`, a re-entry?
+3. **Same rules?** Was it judged by the rules of the place that uses it: the
+   same machine, ordering, units, phase?
+4. **Same scope?** Does it belong to this copy, this request, this user, or
+   did it come along from somewhere else?
+5. **Does the reason still hold?** A lock, a cache, or a shortcut was
+   justified by how things were shared when it was written. When that
+   changes, justify it again.
+
+When the answer is no, check again where it is used, or assume less and take
+the slower, safe path.
+
+| What went wrong | What the check should have covered | Rule |
+| --- | --- | --- |
+| A queued update runs after its target was deleted, and crashes | The target as it is when the work runs, not when it was queued | [What you saw is a clue](../coding/SKILL.md#3-failure-first) |
+| A permission check passes on a host name, which then resolves to a blocked address | The resolved address, at the step that uses it | [Check the thing you will use](../coding/SKILL.md#3-failure-first) |
+| A setting meant for the target machine is checked with the build machine's path rules | The rules of the machine that will read it | [Surrounding settings are inputs](../coding/SKILL.md#3-failure-first) |
+| The first request to fill a shared cache entry leaves its own base path inside, and later requests use the wrong base | Only what is the same for everyone; each request brings its own context | [A cache key must include everything that changes the result](references/patterns.md#derived-state-and-accelerators) |
+| Min and max stored in text order are used to skip data compared as numbers | The ordering the summary was built with | [Write down which way the error may run](references/patterns.md#derived-state-and-accelerators) |
+| Two equal facts are deduplicated, and the copy that said "hidden" is the one dropped | The tag, which is part of the fact | [A tag is part of the fact](#4-tactical-rules-inside-a-context) |
+| An atomic becomes a plain field because "a lock covers it now", but `Drop` reads it without the lock | Every access under today's sharing | [Changing how a field is protected is a protocol change](../coding/references/rust.md#concurrency) |
+| A scheduler runs two steps at once because they talk through a channel it cannot see | Only what the dependency list can see | [Only queue what has to wait](references/patterns.md#concurrency-and-failure) |
+
+### Adding to the core rules
+
+**When you learn a new lesson, ask which core rule it is an example of
+first.** If one fits, add a row to that table and put the detail with the
+owning rule. Only add a new principle when no row fits. When several lessons
+that fit no row keep pointing the same way, name a new core rule with its own
+questions and examples.
 
 ---
 
@@ -217,6 +277,12 @@ from "we have a terminal handle", because one day you will have the handle
 without owning the process, or the other way round. Likewise "can this be
 focused?" is its own fact, not "does it have a tab order?".
 
+**A tag that changes how a fact may be used is part of the fact.** Where it
+came from, who may see it, how certain it is: deduplication, caching, and
+canonical forms must keep the tag. When two equal values with different tags
+meet, a stated rule picks the result ("visible if either is visible"), not
+whichever copy a set happened to keep.
+
 **Invariants live in constructors, not in callers.** If a field can hold any
 value, expose it. If it cannot, make it private, document the invariant, and
 enforce it in the one function that can create the type. Then the invariant is
@@ -299,9 +365,11 @@ understand before I can write anything at all?*
 
 ## 7. Structure
 
-**Flat beats nested.** One level of modules, named exactly what they are. A
+**Flat by default.** One level of modules, named exactly what they are. A
 deep tree encodes a taxonomy you will get wrong and then be too embarrassed to
-change.
+change. Add one more level only where the code already picks between named
+cases (one module per kind of input a generator handles), with the shared
+helpers in the parent. Never add a level just to make a file shorter.
 
 **The folder name is the module name is the concept name.** No aliases, no
 re-exports creating a second path. One name, one location, one import path.

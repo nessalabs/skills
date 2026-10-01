@@ -45,7 +45,7 @@ way, that is the review comment, before correctness, before style.
 - No `utils`, `helpers`, `common`, `shared`, `core`, `types`, `misc`. If you
   cannot name a module after what it *is*, you have not found the concept.
 - One canonical import path per item. No re-exports creating a second route.
-- Flat beats nested.
+- Flat by default (see [§7](../SKILL.md#7-structure)).
 
 ## The absences
 

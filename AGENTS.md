@@ -14,11 +14,17 @@ a problem it has never seen. Write the general idea, then the rule. Each skill
 and each language reference opens with "how to think" before the specifics.
 
 **Look for the core rule first.** Most new lessons are another example of a
-rule we already have. The main one so far is
-[every fact has one authority](skills/engineering/system-architect/SKILL.md#the-core-rule-every-fact-has-one-authority):
-one place makes, decides, checks, and ends each fact, and nothing else guesses
-or keeps its own copy. When a study or a bug teaches something, ask which core
-rule it is an example of. If one fits, add a row to that rule's examples table
+rule we already have. There are two so far, in `system-architect` §1:
+
+1. [Every fact has one authority](skills/engineering/system-architect/SKILL.md#core-rule-1-every-fact-has-one-authority):
+   one place makes, decides, checks, and ends each fact, and nothing else
+   guesses or keeps its own copy.
+2. [A check only holds for what it looked at](skills/engineering/system-architect/SKILL.md#core-rule-2-a-check-only-holds-for-what-it-looked-at):
+   a "yes" is good only for the exact thing, moment, and conditions it was
+   made under.
+
+When a study or a bug teaches something, ask which core rule it is an example
+of. If one fits, add a row to that rule's examples table
 and put the detail with the owning rule. Add a new principle only when nothing
 fits. If several lessons keep pointing at a rule we have not named yet, name
 it as a new core rule with its own examples.
