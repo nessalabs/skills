@@ -142,7 +142,8 @@ not protect remote state. Language-specific mechanics remain in the references.
 tests, including valid inputs, invalid combinations, and applicable failure
 orderings. Assert the output and resulting authoritative state, including what
 stays unchanged on refusal. Use controlled scheduling for competing events;
-the testing method remains in [testing](references/testing.md).
+for async, I/O, or retry guarantees,
+[plan the proof before the code](references/testing.md#plan-the-proof-before-the-code).
 
 Use this prospectively and improve existing boundaries as they are touched where
 practical. If adopting the approach requires a substantial unrelated refactor,

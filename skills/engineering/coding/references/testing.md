@@ -22,6 +22,39 @@ and the language references point here rather than restating them.
 | Mechanism-only cost reduction | Direct evidence of the removed cost (allocation count, syscalls, a profile), plus the contract tests; no end-to-end magnitude claimed |
 | Pure rendering | Nothing, usually. Assert behaviour, not markup |
 
+## Plan the proof before the code
+
+For a changed async, I/O, or retry guarantee, take the risky step in the planned
+flow and name its deciding owner, required state and input, observable effect,
+and result, including the failure meaning owed to the caller. A sequence arrow
+saying "check", "send", or "stop" does not tell you when the decision holds or
+what proves the effect finished. Attach the proof to that step in the existing
+plan; a small local change does not need a new document or a concurrency suite.
+
+Choose the cases from the contract before choosing the fixture. Where readiness
+or timing matters, distinguish work already ready from work that suspends and
+later becomes ready; control the boundary where the decision can change. For a
+shared guarantee, follow each result path that uses different machinery,
+including refusal. Follow the guarantee through affected consumers that start
+or skip consequential work; observe their decisions, not only the producer's
+returned value. Distinguish a signal or returned answer from the physical
+effect and retained resource it is supposed to establish. Keep typed
+failure meaning observable across those paths, including a later refresh or
+retry when that is part of the operation.
+
+Make the negative case reach the last decision before the forbidden effect:
+keep earlier input and authority valid, and pair it with a permitted case that
+actually reaches that effect. An earlier validation error can make a no-effect
+assertion pass without testing the intended guard. Use malformed input when
+parsing is the boundary under test, not as a substitute for valid admission.
+An effect observation can be bytes, durable state, a closed listener, or an
+external port invocation when that invocation itself is the forbidden effect.
+
+The plan is sufficient when each changed guarantee has a controlled violating
+case, a valid counterpart, and an observation that distinguishes them. State
+what the seam cannot establish; add cases only for a remaining contract risk,
+not to enumerate every combination or claim exhaustive scheduling proof.
+
 ## Rules
 
 **Public surface by default.** No test-only visibility, no test-only
@@ -122,11 +155,13 @@ that an automated test.
   want to be free to change; a test on them is a refactoring tax. Asserting a
   state or ownership relationship is the exception above; asserting which
   helper was called in which order is the tax.
-- Call counts standing in for behaviour. A spy on a counter asserts the
-  implementation; a malformed input where the work would have happened asserts
-  the behaviour. The exception is when the count *is* the bug, such as a loop
-  that spins forever doing nothing. Then count it, and also check the task is
-  still alive and waiting, so a task that simply crashed cannot pass.
+- Call counts standing in for behaviour. Prefer the observable effect. An
+  external port invocation count is useful when dispatch itself is the effect
+  the contract forbids, with valid input and a permitted counterpart; counting
+  internal helper calls is still an implementation assertion. The exception is
+  when the count *is* the bug, such as a loop that spins forever doing nothing.
+  Then count it, and also check the task is still alive and waiting, so a task
+  that simply crashed cannot pass.
 - Each piece of generated code, or boilerplate. But the generator itself is
   code. If a macro or code generator decides behaviour, visibility, or types,
   it is a small compiler: test it once, with examples that must work and

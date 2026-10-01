@@ -166,6 +166,7 @@ the slower, safe path.
 | Two equal facts are deduplicated, and the copy that said "hidden" is the one dropped | The tag, which is part of the fact | [A tag is part of the fact](#4-tactical-rules-inside-a-context) |
 | An atomic becomes a plain field because "a lock covers it now", but `Drop` reads it without the lock | Every access under today's sharing | [Changing how a field is protected is a protocol change](../coding/references/rust.md#concurrency) |
 | A scheduler runs two steps at once because they talk through a channel it cannot see | Only what the dependency list can see | [Only queue what has to wait](references/patterns.md#concurrency-and-failure) |
+| A test covers work already ready, but the resumed path or its consumer still breaks | The decision and observable effect in each affected path, with valid input | [Plan the proof before the code](../coding/references/testing.md#plan-the-proof-before-the-code) |
 
 ### Adding to the core rules
 
