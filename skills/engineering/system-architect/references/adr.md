@@ -1,9 +1,12 @@
 # Architecture decision records
 
-One record per decision that is expensive to reverse. Numbered, dated, and
-immutable — when a decision changes, write a new record that supersedes the old
-one rather than editing it. The history *is* the value: it is what tells you, a
-year later, whether the constraints that produced a decision still hold.
+One record per decision that is expensive to reverse. Keep the decision and
+its reasons as history: when the decision changes, write a new record that
+supersedes it. Follow the repository's identity and lifecycle convention.
+Track current delivery status and evidence separately, and update them using
+the repository's convention. Label and date them. The history tells you whether
+the original constraints still hold, while current evidence tells you what has
+shipped.
 
 ## What earns a record
 
@@ -21,7 +24,8 @@ year later, whether the constraints that produced a decision still hold.
 
 ## Template
 
-Keep it to one page. If it needs more, it is probably two decisions.
+Keep the decision short. Put detailed mechanics and evidence in linked design
+documents; split the record when it contains independent decisions.
 
 ```markdown
 # NNNN. <short decision, as a statement>
@@ -51,3 +55,31 @@ What becomes easier. What becomes harder — say this plainly, including the wor
 we are accepting as a cost. What we would watch for to know this decision has
 stopped being right.
 ```
+
+## Reconciling records with the system
+
+**Compare the decided scope, the shipped slices, and their evidence separately.**
+Accepted is not implemented, and implemented is not verified on every platform.
+For each promised slice, name the owner, current implementation and evidence,
+with the remaining gates. A schema can exist before its consumer renders,
+executes or authorizes it. Rejected alternatives and deferred improvements are
+not unfinished requirements unless the decision included them.
+
+**Repair the contradiction wherever readers encounter it.** Check the header,
+current-state prose, delivery tables, checklists, index, linked README and
+tracking issue. A corrected header does not repair a stale body. Describe the
+exact claim that disagrees with current evidence and the bounded correction;
+do not rewrite an accepted decision to make a code defect look intentional.
+
+**Check the inventory as a structure.** Records need unique identities and
+placement consistent with the repository's inventory convention. Keep decision
+acceptance separate from delivery completion when choosing a lifecycle section.
+A stray link elsewhere is not index coverage. A move preserves supersession
+history and incoming references. Keep shared-index edits narrow, reread after combining changes,
+and check the resulting tree rather than each patch in isolation.
+
+Before filing a finding, compare existing issue ownership and the exact sections
+changed by open pull requests. Touching the same document does not prove the
+contradiction is fixed. Pin the inspected revision and distinguish inspected
+code, reported checks, checks you ran and unknown coverage, following
+[method](../../method/SKILL.md#2-verifying).

@@ -113,6 +113,14 @@ result would set off: showing an error, clearing what the user typed, starting
 a timer, cleaning something up. An old answer that arrives late can be written
 to the log, but it must not do anything.
 
+Validate before a transform erases the difference you need to reject. Zipping,
+truncating, deduplicating, or coercing can make bad input look valid; check its
+shape and meaning first unless that loss is the promised behaviour. When a
+protocol allows repeated or conflicting declarations, apply its precedence
+rules to all of them. When writing the result, remove conflicting raw values
+even if they failed to parse, and preserve unrelated values. A parsed absence
+does not prove the raw declaration is gone.
+
 **Write the transitions before implementing them.** For a flow with meaningful
 intermediate states, use a table in its existing design document or module
 contract: current state, event/input, guard, effects, next state, and returned
@@ -156,9 +164,12 @@ evidence; adopting the principle does not require an app-wide rewrite.
 framework for a family of things like it. You will know the right abstraction
 on the third instance, and you will be wrong about it on the first.
 
-**Do not build what nobody asked for.** No configurability, no extension point,
-no generality, no layer that only forwards. A parameter with one caller is a
-constant that has not admitted it yet.
+**Do not build choices nobody needs.** No speculative settings, extension
+points, generality, or layers that only forward. A setting earns its place
+through a caller's contract or supported workloads needing different policies
+that the owner cannot choose itself. Name its default, range, and trade-off;
+check that the setting actually changes the intended behaviour. One caller
+alone proves neither that a choice is needed nor that it should be a constant.
 
 **Extract on the second use, not the first**, and only when the two uses are
 the same *idea*, not coincidentally the same lines. A block, a local, or a
@@ -210,6 +221,9 @@ repeated, or entered twice.
   shows the thing existed *then*. When queued or delayed work runs, look again.
   If the thing may legally be gone, skip quietly; if it must still exist, fail
   loudly.
+  A temporary `Pending` may mean the scheduler yielded, not that a queue is
+  empty. If taking work changes available capacity, reconcile the published
+  readiness at that transition, not just when work was queued.
 - **An id is only unique where it was made.** A counter that restarts at zero
   each run, or a slot number that gets reused, will hand out the same id
   twice. If you combine things built separately, make the ids unique when you
@@ -219,6 +233,8 @@ repeated, or entered twice.
   something up, not proof two things are the same. If a cache keeps entries
   longer than the thing an id points to, add a generation number to the key so
   a reused id does not find old data.
+  Delayed work keeps the stable identity and resolves a replaceable handle
+  when it runs, rather than retrying with a handle from an older generation.
 - **Check the thing you will use, not the name that led to it.** If a name is
   turned into something else before use (a host name into an address, a link
   into its target, a relative path into a full one), run the check on the
@@ -262,9 +278,14 @@ repeated, or entered twice.
   Clean up only what you created. By the time you delete a shared file or
   slot, someone newer may have replaced it with their own; check it is still
   yours first.
-- **Releasing a resource is half the obligation; waking whoever waits on it is
-  the other half.** For every exit, name the owner that returns the resource and
-  the transition that makes the waiter runnable.
+  If an outside system can still use a pointer or token into your state,
+  cleanup does not yet mean it can be freed. Failed unregister is not proof
+  the reference is gone; retain the state until revocation or another
+  documented guarantee proves no outside user remains.
+- **Returning a resource includes notifying live waiters owed that change.**
+  Name who can still wait, what lets them proceed, and what makes them runnable.
+  A peer known to be closed needs no wake. If liveness cannot be decided
+  safely, a redundant wake is better than missing a required one.
 - **Release transient state at its lifecycle boundary.** A long-lived owner
   holds heavy phase-specific state no longer than the phase, with a defined way
   to re-acquire it if a later legal event needs it. Before freeing something
@@ -278,6 +299,10 @@ repeated, or entered twice.
   timeout, the garbage collector), give one owner a single "I'll do it" claim.
   Whichever path takes the claim does the work; the others do nothing. No path
   should guess from its own notes whether it already happened.
+- **A temporary missing prerequisite does not finish accepted work.** Retain
+  work that the contract says should retry, and say what schedules another
+  attempt. Remove it on success or a defined cancellation or terminal refusal,
+  rather than consuming it merely because its dependency is not ready yet.
 - **Put a rule where every path has to pass.** A limit, a "rebuild needed"
   flag, a permission check: if only one caller looks at it, the other caller
   skips it. Put it in the one place every request goes through, and keep it
@@ -294,10 +319,17 @@ repeated, or entered twice.
   set a number, say which is the caller's hard limit and which is just a
   default. A default never raises a limit the caller set, and an automatic tuner
   may only lower it.
+  Name the unit too: a parsed record's budget is not its transport buffer's
+  capacity. Bound both partial acquisition and the complete item, including
+  secondary fragments, without counting unrelated buffered data against it.
 - **Decide what happens to accepted work at shutdown.** For each kind of work,
-  say whether shutdown finishes it, drops it, and how a drop gets reported.
-  Work you already said yes to must not quietly disappear. Waiting for outside
-  input, such as someone typing, must not keep shutdown from finishing.
+  say what acceptance promises: buffered, queued, admitted, executed, or visible
+  to the receiver. Work promised a drain must not silently disappear; closed
+  admission returns an honest refusal. Graceful close goes through the layer
+  that owns pending output or protocol state. Name the last owner able to clean
+  up on each termination path: an in-process hook cannot run after that process
+  is force-killed. Indefinite outside input must not accidentally prevent
+  shutdown. State the smaller guarantee of a timed or forced stop separately.
 - **Authority is part of the key.** State owned by a principal (tenant, session,
   window, user) is stored under the owner first and the local id second, so a
   guessed id cannot select someone else's state and no caller has to remember

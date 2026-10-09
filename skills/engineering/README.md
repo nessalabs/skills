@@ -64,6 +64,7 @@ files disagree, the owner is right and the other is a bug. The owners:
 | Design decisions, boundaries, core, invariants, authority-shaped state | `system-architect` |
 | Layout, absences, process boundaries, architecture map | `system-architect/references/structure.md` |
 | Concrete techniques: seams, gating, accelerators, concurrency protocols | `system-architect/references/patterns.md` |
+| Decision-record history, delivery evidence, lifecycle and inventory reconciliation | `system-architect/references/adr.md` |
 | Description format, evidence per claim, commit shaping, review standard, what blocks | `pull-requests` |
 | Finding instruments, verification, evidence classes, holding a fix in place, CI cadence | `method` |
 | Walking a runtime path, its markers, and the debugging-mode ending | `trace` |

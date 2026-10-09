@@ -179,6 +179,10 @@ that content, and a cache entry is removed when its source is deleted. A weak
 reference does not clean up leftover entries. Things the user set on top, like
 a filter or sort order, are kept only if they still make sense for the new
 content.
+The signal used to notice a change must cover every legal mutation that changes
+the answer. Length misses a same-length replacement; a version works only if
+every relevant writer updates it. Restrict writers, maintain the cache with
+them, or invalidate explicitly when the cheap signal is insufficient.
 
 **A value picked from several sources is worked out, not stored.** When an
 override, a setting, and a default compete, keep each one where it is. One
@@ -194,6 +198,10 @@ if it is missing.
 Measure the fallback before calling the system resilient. Failing closed is a
 legitimate choice to write down at the selection boundary, not a default to
 drift into.
+If a compatibility fallback replaces an unsupported parser or verifier, name
+the validity, authority, error and resource guarantees it must still establish.
+Unsupported does not mean trusted; reject a restriction the fallback cannot
+safely check rather than treating it as absent.
 
 **A new engine starts compatible with nothing.** When an established feature
 gains a second execution path, classify every existing option combination:
@@ -224,6 +232,11 @@ has grown enough that the heuristic has stopped working.
 ---
 
 ## Concurrency and failure
+
+**Independent progress needs independent back-pressure.** A blocked log writer
+must not stop unrelated requests from being read. Share a wait only when the
+contract requires that coupling; otherwise let each stream make progress under
+its own bound, and check one still advances while the other is stalled.
 
 **The module doc *is* the safety protocol.** The best concurrent code opens
 with a comment that enumerates every kind of reference to the object, what the
@@ -282,8 +295,11 @@ wraparound race; see issue NNNN." The history of why the obvious version was
 wrong is the most valuable thing to leave behind, and the cheapest place is
 next to the code.
 
-**Fix it upstream.** Working around a bug in a layer you depend on is a
-permanent local cost to avoid a one-time external one.
+**Fix the mechanism at its owner when its contract allows it.** Prefer an
+upstream fix to permanent local workarounds. If the upstream API's broader
+compatibility promise prevents the caller-specific change, keep the workaround
+narrow, link the limitation and state when to delete it. Recheck that limitation
+rather than assuming an old discussion still applies.
 
 ---
 

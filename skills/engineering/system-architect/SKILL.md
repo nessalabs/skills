@@ -122,6 +122,11 @@ the rule that covers it in detail:
 | A loop spins forever because flush says "ready" while the real write is still waiting | The real write's own answer | [A hand-written poll loop can go wrong two ways](../coding/references/rust.md#concurrency) |
 | Code checks an environment variable a hosted builder sets, but users can switch the same mode on without it | The condition the compiler actually sees | [Key a mode on what the compiler sees](../coding/references/rust.md#testing-rust-specifics) |
 | A cheaper version of an operation skips a flush the original does, and both sides wait forever | The operation's contract, which every version follows | [A cheaper version keeps the contract](../coding/SKILL.md#5-performance) |
+| A retry keeps an old handle after the resource was replaced | The stable identity, resolved by its current owner when work runs | [An id is only unique where it was made](../coding/SKILL.md#3-failure-first) |
+| An error unregistering a native callback is treated as proof its state can be freed | The outside system that still holds the reference | [Cleanup is structural](../coding/SKILL.md#3-failure-first) |
+| A tracing callback panics after permits move, before the guard records that it must return them | The guard that now owns cleanup | [Every panic is a way out](../coding/references/rust.md#how-to-think-in-rust) |
+| A future reserves capacity during construction, but dropping it before its first poll leaks that capacity | The future holding the reservation from construction | [A future's constructor can act sooner](../coding/references/rust.md#async) |
+| A blocked output stream stops unrelated input from being read | Each stream's own progress contract | [Independent progress](references/patterns.md#concurrency-and-failure) |
 
 §9's "every invariant has a named enforcer" is this rule applied to
 invariants.
@@ -167,6 +172,10 @@ the slower, safe path.
 | An atomic becomes a plain field because "a lock covers it now", but `Drop` reads it without the lock | Every access under today's sharing | [Changing how a field is protected is a protocol change](../coding/references/rust.md#concurrency) |
 | A scheduler runs two steps at once because they talk through a channel it cannot see | Only what the dependency list can see | [Only queue what has to wait](references/patterns.md#concurrency-and-failure) |
 | A test covers work already ready, but the resumed path or its consumer still breaks | The decision and observable effect in each affected path, with valid input | [Plan the proof before the code](../coding/references/testing.md#plan-the-proof-before-the-code) |
+| A cache watches length, but the content is replaced without changing length | Every permitted mutation that changes the answer | [When the source changes](references/patterns.md#derived-state-and-accelerators) |
+| A pool lends capacity because an old readiness signal survives taking work | Availability at the owner's current admission transition | [Failure first](../coding/SKILL.md#3-failure-first) |
+| A record says complete after one of several promised consumers ships | The full decided scope and the evidence for each delivered slice | [Reconciling records](references/adr.md#reconciling-records-with-the-system) |
+| A capability is disabled at runtime, but its foreign import still prevents an older supported target from linking | The final downstream link, including capability-off builds | [Rust compatibility checks](../coding/references/rust.md#testing-rust-specifics) |
 
 ### Adding to the core rules
 
@@ -284,10 +293,12 @@ canonical forms must keep the tag. When two equal values with different tags
 meet, a stated rule picks the result ("visible if either is visible"), not
 whichever copy a set happened to keep.
 
-**Invariants live in constructors, not in callers.** If a field can hold any
-value, expose it. If it cannot, make it private, document the invariant, and
-enforce it in the one function that can create the type. Then the invariant is
-verified by reading one file.
+**Invariants belong to the owner, through construction and mutation.** If a
+field can hold any value, expose it. If it cannot, make it private, document the
+invariant, and enforce it in the constructors and allowed mutators. Derive the
+valid states from the whole public API: shortening a timer's duration can
+legally leave elapsed time past that duration, and its queries must handle it.
+Then the invariant is verified by reading one file.
 
 **Rich domain, thin application.** Business rules live in the objects that own
 them. The application layer loads, calls, saves, publishes. When application
@@ -620,10 +631,9 @@ that invalidates it. It answers the question that costs new contributors the
 most time, which is never "how do I write this" but "where does it go". Shape
 in [structure](references/structure.md#an-architecture-map).
 
-**Decision records**: one short record per decision that is expensive to
-reverse, numbered, dated, immutable, superseded rather than edited. The value
-is the reasoning, which is what you need six months later when the constraints
-have shifted. Format in [adr](references/adr.md).
+**Decision records**: the format and reconciliation procedure live in
+[adr](references/adr.md). The value is the reasoning, which you need six months
+later when the constraints have shifted.
 
 **Before large or irreversible work, write the note first**, and **record what
 you deliberately did not do** in the change description. Both are owned by

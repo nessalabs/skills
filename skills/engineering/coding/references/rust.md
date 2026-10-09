@@ -39,6 +39,9 @@ something must happen on the way out (free a handle, bump a counter, flush,
 record a time), either do it before the first `?` or put it in a guard whose
 `Drop` does it. If you rely on remembering it on every path, the error path is
 the one that forgets.
+Record the guard's new cleanup obligation before tracing, formatting, waking,
+or another call-out can unwind. Queue membership and cleanup state must already
+agree with ownership when a callback can see them.
 
 **A promise made with `unsafe` is a proof over the whole safe API.** Marking
 something `Send`, `Sync`, or sound is a claim about every safe operation
@@ -83,11 +86,9 @@ copy".
 
 ## Types and invariants
 
-**A field with an invariant is private and enforced in the constructor.** If
-any value is legal, make it public. If not, document the rule, make it private,
-and enforce it in the one function that can build the type. The invariant is
-then verified by reading one file. Giving out `&mut` to the inside breaks this
-just as a public field would. `DerefMut`, `AsMut`, a `&mut Inner` getter, or a
+**Mutable access can bypass the invariant's owner.** Follow the
+[owner's rule](../../system-architect/SKILL.md#4-tactical-rules-inside-a-context).
+`DerefMut`, `AsMut`, a `&mut Inner` getter, or a
 mutable iterator lets the caller do *anything* the inner type allows. Say a
 wrapper promises its list stays sorted: `DerefMut` to the `Vec` lets anyone
 `push` and unsort it. Only offer `&mut` if every change it allows keeps the
@@ -141,6 +142,12 @@ change each one.
 
 ## Allocation
 
+**Grow around address-sensitive values without moving them.** Once storage
+hands out a stable pointer or a pinned value whose address must stay fixed,
+growth cannot move it. Add stable chunks or move pointers to stable pointees,
+keeping the owner needed to return each allocation to the right chunk. Ordinary
+reallocation is fine when no live value requires address stability.
+
 **Reserve exactly what you write.** A capacity hint that does not match the
 write either wastes memory or triggers the reallocation it was meant to
 prevent.
@@ -172,6 +179,11 @@ report build wall and CPU time alongside the size win rather than assuming.
 A generic wrapper used everywhere can make the compiler re-prove traits such
 as `Send` at every use; when builds are slow or memory-hungry, profile the
 compiler, because a few concrete types can be far cheaper.
+For a branch on a property of `T`, check whether both concrete paths are being
+instantiated even though only one can run. A type-dependent constant may let
+the compiler discard the unused path without adding runtime dispatch. Check
+generated instances and build wall/CPU time on representative callers and the
+supported compiler; do not assume every compiler benefits.
 
 **Make helper types generic over the minimum.** A combinator generic over the
 *input* type rather than the *item* type it handles multiplies across every
@@ -244,12 +256,10 @@ gets notified, track unsuccessful wake-ups and useful work per wake alongside
 latency. Fewer notifications is not a win if progress stalls; more is not a win
 if CPU per completed operation rises.
 
-**Releasing the resource is half the obligation; waking the waiter is the
-other half.** Returning a permit through the raw primitive instead of the normal
-release path leaves a closed receiver asleep forever. For every exit, name the
-owner that returns the resource and the transition that makes the waiter
-runnable. In a manually polled test, assert the future was *woken* before
-polling it again; a forced poll hides exactly this bug.
+**A forced poll can hide a missing wake.** Follow the
+[notification rule](../SKILL.md#3-failure-first).
+In a manually polled test, assert a pending future owed the transition was
+*woken* before polling it again; a forced poll hides a missing wake.
 
 **A hand-written poll loop can go wrong two ways.** Every place it returns
 `Pending` needs something that will wake it again, or it sleeps forever. Every
@@ -262,6 +272,13 @@ write never is.
 **Construct the whole worker set before starting any of it.** A factory that
 panics partway leaves an active count including participants that never
 existed. Test the panic at the first, middle, and last position.
+
+**Wrapping chronology needs a bounded comparison window.** A `usize` counter
+can wrap sooner on a narrower target. Define relative order once, and prove the
+live comparison window is strictly smaller than half the counter space;
+otherwise add an epoch
+or a stronger representation. Test near wrap with an older owner still live.
+Equality-only identifiers do not need a chronological order.
 
 **A fixed pool or cache capacity is a concurrency ceiling.** A constant that was
 generous on four cores serialises on thirty-two. Size from available
@@ -298,6 +315,9 @@ overflow deep in a constructor produce something incomprehensible. If the input
 is valid but your internal type cannot hold the result, map it to a state the
 contract allows: a timeout too large for the clock means "wait forever", not a
 panic. Your integer range must not quietly decide what the API accepts.
+Check the arithmetic that builds a bound before comparing against it. If a
+combined step cannot fit, preserve the API's meaning with equivalent stages or
+a typed refusal; clamping is correct only when the contract says so.
 
 **Guard the algorithm's forbidden inputs at construction.** A zero seed, an
 empty set where the loop assumes one element: reject them where the value is
@@ -313,6 +333,12 @@ end when you hand it over. Only wrap handles you own, never borrowed ones.
 Before turning a field from a C or OS API into a Rust reference, string, or
 slice, check whether the docs say it can be null.
 
+**Foreign status decides which output is valid.** Read an out-parameter or
+callback result only when the foreign status and exception contract say it is
+initialized and usable. Some failures promise a valid partial result; handle
+those explicitly. An exception must not leave a success path reading an unset
+or invalid return value.
+
 **If a type stops cleaning up after itself, someone else has to.** When you
 take out of an inner type the thing it needed to clean up, the nearest outer
 type that has it must do the cleanup in its `Drop`. Any lower method that could
@@ -323,6 +349,11 @@ caller must do.
 ownership system (Objective-C, C++, OS callbacks), draw both sets of edges. If a
 foreign retain cycle can keep the Rust owner alive, cleanup that lives only in
 `Drop` never runs; release explicitly at the owner's lifecycle event.
+
+**Field order can be a teardown contract.** Rust struct fields drop in
+declaration order. If a guard must unregister or join before another field
+closes its resource, encode that order or use explicit teardown. Explain it
+next to the fields and check the resource is still live during the guard's drop.
 
 **Native handles belong to the branch that uses them.** Acquire as late as
 possible, after deciding which branch runs, and release on every path
@@ -342,9 +373,15 @@ them. Only nest errors when one really caused the other.
 
 ## Async
 
-**A `Future` does nothing until polled.** Constructing one is free; not awaiting
-one is usually a bug. Anything that must happen regardless of whether the
-caller waits belongs in a spawned task.
+**An `async fn` body starts when polled; a future's constructor can act sooner.**
+A regular function returning a `Future` runs ordinary synchronous code and can
+reserve capacity or enqueue a waiter immediately. Treat that timing as part of
+the API. Check construction followed by drop without a poll, and two futures
+constructed before either is polled, including cancellation and reversed poll
+order. An optimized path keeps the same promised reservation timing and queue
+fairness. Work that must happen independently of polling needs an explicit owner,
+usually a spawned task.
+Creating a lazy async operation and never polling it does not run its body.
 
 **Say what happens on cancellation.** Any `async fn` that can be dropped
 mid-way documents whether partial work is visible, and every `select!` arm is a
@@ -394,6 +431,10 @@ The rules are in [testing](testing.md). What Rust adds:
   a newer Rust from its users. A passing build on an old version shows that
   version works, not that nothing older does. Your lockfile is only one of the
   dependency sets your users might end up with, so also build without it.
+  For foreign imports, link downstream consumers on the minimum supported SDK
+  or host-tool version, with the capability off and on where supported. A
+  runtime-disabled capability can still pull a symbol into the final link;
+  Rust compilation alone proves neither that symbol nor its ABI and fallback.
 - **A macro is a small compiler; test the code it writes.** Compile what the
   macro produces on the oldest Rust and the editions your users have, not just
   the macro crate itself. Test by actually calling the macro, because pasting
@@ -402,10 +443,20 @@ The rules are in [testing](testing.md). What Rust adds:
   generated code calls private parts of a companion crate, use only its public
   API or version the private one, so a mismatch fails at build time instead of
   quietly linking the wrong thing.
+  Include a nested-macro invocation: generated bindings and uses need matching
+  hygiene, while user tokens need useful diagnostic spans. Keep these separate.
+  A new hard error on accepted input is a compatibility decision, including
+  builds that deny warnings. Scope warning suppression to generated uses that
+  need it, and check user helper code still gets its own warnings.
 - **Key a mode on what the compiler sees.** A mode that can be switched on
   several ways (a feature, a `--cfg` flag, an environment variable a hosted
   builder sets) is keyed to the condition the compiler actually sees, and built
   each supported way, including from a downstream crate.
+- **Build-script effects respect the build's purpose.** In a documented docs
+  or metadata mode, skip unnecessary native-project writes before attempting
+  them; swallowing filesystem errors hides failures in real builds. Keep
+  required effects in supported writable outputs and check the application
+  build still performs them.
 
 ## Performance in Rust
 

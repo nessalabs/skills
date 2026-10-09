@@ -316,9 +316,8 @@ exchange was the entire value of the review.
 - **Two rounds without convergence means talk, not type.**
 - **If you think it should not land, say why.** "No" without an explanation
   does not block anything and is not a review.
-- **Push the fix upstream where the defect actually is.** *"Did you open a pull
-  request against the dependency?"* is a fair question. Working around someone
-  else's bug is a permanent local cost to avoid a one-time external one.
+- Ask whether the fix belongs upstream, using the ownership and compatibility
+  rule in [patterns](../system-architect/references/patterns.md#concurrency-and-failure).
 
 ### Receiving review
 
