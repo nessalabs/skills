@@ -182,6 +182,9 @@ that an automated test.
   configuration, does it work against real external components, does it
   survive load, how fast is it. Each runs on a different cadence and fails for
   a different reason; merged, the slow one stops being run.
+  When features split a suite, check its default and aggregate membership too:
+  a test or benchmark that builds alone may never be reached by the intended
+  CI command. Show that command discovers and executes the affected case.
 - One test file per concern, named for it. A regression file named after the
   defect tells you what it protects without being opened.
 - Fixtures and builders are shared *within* a context, never across contexts.
