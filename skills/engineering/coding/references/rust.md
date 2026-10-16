@@ -46,7 +46,9 @@ agree with ownership when a callback can see them.
 **A promise made with `unsafe` is a proof over the whole safe API.** Marking
 something `Send`, `Sync`, or sound is a claim about every safe operation
 reachable from that type, now and after the next refactor, not about the fields
-at the impl site.
+at the impl site. For native registration, `AsFd` or `AsRawFd` alone does not
+prove the same underlying resource stays open and unchanged until deregistration;
+enforce that through ownership or an explicit unsafe caller contract.
 
 ---
 
@@ -83,6 +85,13 @@ Search a consuming call for `clone`, `to_vec`, `to_owned`, and `collect` that
 could have been a move. `Cow::into_owned` still allocates for borrowed input,
 so the honest claim is "reuses owned storage when there is some", not "zero
 copy".
+
+**Check which implementation the receiver actually calls.** An inherent method
+and a trait default with the same name can take different receivers. Check
+concrete, aliased and trait-object calls, especially cleanup; an intentional
+no-op default needs no override when it promises no effect. Prefer a combined
+trait operation over splitting it when that preserves downstream specialization
+and the same error semantics.
 
 ## Types and invariants
 
@@ -125,8 +134,10 @@ instances, its byte size *is* the memory profile. Count the bytes, pack where
 the win is real, and document the layout at the declaration. Before packing,
 look for fields that are the same for every instance under one owner: move
 them into one shared context the instances point to, and compute what can be
-derived. Pin the size with a `size_of` assertion so adding a field is a
-deliberate choice.
+derived. Pin Rust-owned size with a `size_of` assertion. Foreign buffers use
+the consumer's size, alignment and stride contract; test a one-element type
+whose layouts differ. For internal layout tuning, inspect generated code and
+measure the workload rather than assuming extra alignment helps.
 
 **Cloning an `Arc<Mutex<_>>` shares the state; it does not copy it.** When a
 type that derives `Clone` holds one, decide per field whether copies are meant
@@ -134,11 +145,17 @@ to share it or each needs its own. Two copies of a plan that share one cache
 will overwrite each other's answers. Test it by making two copies, using them
 differently, in both orders.
 
+When mutating a `Copy` value from an accessor or `Option`, check whether it is
+a temporary: `unwrap()` can copy, while `as_mut()` borrows stored state. Read
+back from the owner, or explicitly replace it with the transformed value.
+
 **A private field still shapes public facts.** Whether the type is `Send`,
 `Sync`, or `Unpin`, its size, and whether `Option<T>` costs extra space are all
 worked out from its fields, and debuggers and snapshot tests read the layout.
 Before swapping a field's type, check each of these and keep or deliberately
-change each one.
+change each one. Pointer-wrapper swaps can also change coercions, auto-trait
+resolution and compiler-recognized layout; check downstream generic consumers
+when those contracts are exposed.
 
 ## Allocation
 
@@ -152,9 +169,11 @@ reallocation is fine when no live value requires address stability.
 write either wastes memory or triggers the reallocation it was meant to
 prevent.
 
-**Reuse the buffer rather than freeing it.** Clear and refill keeps the
-allocation; drop and recreate does not. Hold the buffer at the outer scope of
-any loop.
+**Keep spare capacity while reuse is likely.** Clear and refill a fully consumed
+buffer to reuse storage; preserve any unsent suffix. Reclaim a consumed prefix
+when growth would otherwise be needed, weighing copying against peak capacity.
+At a long-lived cache or immutable boundary, consider releasing excess capacity.
+Scratch reuse does not decide an output stream's buffering or flush contract.
 
 **Watch for the defensive copy inside a loop.** The most common accidental
 quadratic in Rust is a `clone()` made for a good local reason, ownership or a
@@ -198,13 +217,11 @@ or code size matters, and never erase merely to avoid writing a type parameter.
 **Mark cold paths cold.** `#[cold]` and `#[inline(never)]` on error
 construction, slow-path refills, and panics keep them out of every call site.
 
-**`#[inline]` on small leaf implementations that cross a crate boundary.**
-Without it a downstream crate cannot inline them and loses bounds-check elision
-at every call site. Do not scatter it elsewhere. Forcing a shared helper to
-inline to speed up one caller makes *every* caller bigger. Prefer a quick
-check in the one caller that needs it. If you do force it, measure an ordinary
-caller too, not just the one you were fixing. A codegen test should check the
-generated code's shape, not the name of some helper.
+**Inline when the consumer proves the benefit.** A small cross-crate leaf or
+hot forwarding wrapper may benefit, but shared forced inlining spends size and
+compile-time budget across callers. Compare representative and ordinary callers,
+generated code and build cost. Prefer a local fast path when it avoids forcing
+the shared helper into everyone; codegen tests assert shape, not helper names.
 
 ## Concurrency
 
@@ -224,8 +241,10 @@ B holds the interpreter lock and waits for yours, and neither can move. Snapshot
 the registry and release, or queue mutations and replay after. Holding across
 the call is acceptable only when re-entry is impossible by a local, durable
 guarantee. Where an operation must happen under the lock, check the actual mutex
-wrapper's behaviour on panic, and drop the replaced value after unlocking. The
-callback's signature shapes which of these is open to you. With `&mut self` or
+wrapper's behaviour on panic, and drop the replaced value after unlocking.
+Waking or destroying a replaced `Waker` can re-enter too; release the guard
+before either when re-entry is possible. The callback's signature shapes which
+of these is open to you. With `&mut self` or
 `FnMut`, calls must happen one at a time, and the framework has to arrange that
 without calling plugin code under the registry lock: take the callback out,
 release, call it, put it back, or run calls through one owner or queue. With
@@ -302,6 +321,11 @@ re-exports either the real ones or instrumented ones under a build flag, so the
 exhaustive checker is a build configuration rather than a refactor. Shrink
 capacity constants under that flag so it terminates.
 
+**Bootstrap code must not call back into its own initialization.** Trace cold
+paths through allocator or foreign-runtime helpers: their first lock or attach
+may allocate and re-enter the allocator. Use a narrower primitive or prove the
+cycle impossible; warm-path success does not establish cold-start safety.
+
 ## Errors, panics, and unsafe
 
 **Panics are API.** Document the exact condition, annotate so the panic is
@@ -317,11 +341,17 @@ contract allows: a timeout too large for the clock means "wait forever", not a
 panic. Your integer range must not quietly decide what the API accepts.
 Check the arithmetic that builds a bound before comparing against it. If a
 combined step cannot fit, preserve the API's meaning with equivalent stages or
-a typed refusal; clamping is correct only when the contract says so.
+a typed refusal; clamping is correct only when the contract says so. A wide
+total need not fit one platform-sized call: check narrowing and cap each call
+without truncating the remaining total, including on 32-bit targets.
 
 **Guard the algorithm's forbidden inputs at construction.** A zero seed, an
 empty set where the loop assumes one element: reject them where the value is
-built.
+built. For input-controlled recursive descent, carry a stack/work budget
+through every recursive entry and refuse before exhaustion; adapters must not
+reset it. Distinguish semantic container depth from native stack/work: a wrapper
+may spend the latter without adding a container. Document a new limit as a
+compatibility change.
 
 **Order the fallible step before you are holding something that needs
 cleanup.** Any call that can panic between "took ownership" and "stored it
@@ -345,10 +375,9 @@ type that has it must do the cleanup in its `Drop`. Any lower method that could
 skip that cleanup becomes private, or `unsafe` with a comment saying what the
 caller must do.
 
-**`Drop` cannot break a cycle that prevents `Drop`.** When bridging to another
-ownership system (Objective-C, C++, OS callbacks), draw both sets of edges. If a
-foreign retain cycle can keep the Rust owner alive, cleanup that lives only in
-`Drop` never runs; release explicitly at the owner's lifecycle event.
+**`Drop` cannot break a cycle that prevents `Drop`.** Draw strong ownership
+edges in pure Rust as well as foreign runtimes. Break a cycle with non-owning
+edges or explicit lifecycle release; safe `Arc` code can leak too.
 
 **Field order can be a teardown contract.** Rust struct fields drop in
 declaration order. If a guard must unregister or join before another field
@@ -359,7 +388,8 @@ next to the fields and check the resource is still live during the guard's drop.
 possible, after deciding which branch runs, and release on every path
 including `?` and platform fallbacks. Progressive degradation (latency or
 memory climbing over minutes) is the symptom; count retained handles alongside
-CPU.
+CPU. A native container retaining a handle may not retain the Rust wrapper
+that owns its callbacks; keep that wrapper alive for the callback lifetime.
 
 **Prefer early returns.** `let Some(x) = .. else { return }` and `?` keep the
 happy path at one indentation level. But not past bookkeeping that must happen
@@ -382,6 +412,9 @@ order. An optimized path keeps the same promised reservation timing and queue
 fairness. Work that must happen independently of polling needs an explicit owner,
 usually a spawned task.
 Creating a lazy async operation and never polling it does not run its body.
+For graceful drain, closing admission may leave sends reserved before close.
+If the contract promises those sends, keep the receiving owner alive until they
+complete or roll back; an explicit discard-on-close contract can stop earlier.
 
 **Say what happens on cancellation.** Any `async fn` that can be dropped
 mid-way documents whether partial work is visible, and every `select!` arm is a
@@ -402,8 +435,12 @@ of it. Test a second entry path, and that cancellation returns capacity.
 **Never block a thread that other work is waiting on.** That means async
 workers, but also UI and event-loop callbacks, even when the callback is a
 plain non-async function. One slow file read there freezes every window.
-Move slow work (file access, heavy computation, waiting on a lock) to a
-blocking pool. If the API gives you a "respond later" handle, hand the work
+Inspect the whole path before offload, including file open and transitive
+blocking primitives. Use a blocking pool for bounded blocking work; unbounded
+waits must not exhaust the same finite pool needed to release them. An isolated
+thread or nonblocking protocol still needs a resource budget and failure policy.
+Check the actual host: a main-thread blocking primitive may be forbidden
+there. If the API gives you a "respond later" handle, hand the work
 off, return straight away, and answer when it is done. Ask "does this ever
 block?" of every new dependency. Never wait by freezing the very loop that has
 to tell you the wait is over; if you cannot pause there, return an error
@@ -415,6 +452,10 @@ source of deadlock.
 ## Testing, Rust specifics
 
 The rules are in [testing](testing.md). What Rust adds:
+
+- **Locate integration executables through Cargo's contract** when the test
+  mode supplies it, rather than assuming a target-directory layout. Keep
+  cross-runner and fallback behavior explicit.
 
 - **Compile-fail tests protect type-level invariants**, with a snapshot of the
   error. Without one, a later refactor can quietly make the illegal state
@@ -445,6 +486,8 @@ The rules are in [testing](testing.md). What Rust adds:
   quietly linking the wrong thing.
   Include a nested-macro invocation: generated bindings and uses need matching
   hygiene, while user tokens need useful diagnostic spans. Keep these separate.
+  Check named-field and newtype paths; generated locals need matching binding
+  and use spans without replacing user diagnostic spans.
   A new hard error on accepted input is a compatibility decision, including
   builds that deny warnings. Scope warning suppression to generated uses that
   need it, and check user helper code still gets its own warnings.
@@ -470,6 +513,9 @@ The method is in [`coding`](../SKILL.md#5-performance). What Rust adds:
   second lock acquisition is real, and it is not a measured speedup. Say which.
   When one change carries two optimisations, attribute the evidence per
   mechanism so a later regression can be reverted by the hunk that caused it.
+- **Name the consumer of generated-code performance.** An editor-analysis
+  claim needs a downstream IDE workload, distinct from runtime or compiler
+  speed; use [consumer validation](testing.md#rules) for the generated artifact.
 - **Preserve representation across a transport boundary.** Bytes that are
   already bytes do not go through a text encoding and back because the
   convenient API takes a string. Text may be the correct stable contract; the

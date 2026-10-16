@@ -19,6 +19,7 @@ and the language references point here rather than restating them.
 | Subtle documented semantic | Tests asserting exactly what the documentation claims |
 | Type-level invariant | A compile-fail test with a snapshot of the error |
 | Quantified performance claim | A benchmark with the stated workload and baseline, kept in CI when it is stable enough to catch regressions |
+| Refactor with unchanged behavior | Contract equivalence; no invented red-before behavior claim |
 | Mechanism-only cost reduction | Direct evidence of the removed cost (allocation count, syscalls, a profile), plus the contract tests; no end-to-end magnitude claimed |
 | Pure rendering | Nothing, usually. Assert behaviour, not markup |
 
@@ -65,9 +66,12 @@ friction; it is the test proving the API is usable.
 The exception is a protocol the public API cannot drive to the point where it
 breaks: a cancellation race, an unsafe representation, a lock-ordering rule. A
 module-local test or a bounded model checker is the right instrument there, on
-four conditions. It stays in the module, it widens no visibility, it is paired
-with a public regression test, and the change says what the model bounded. A
-model proves a property of the model within the schedules it explored; that is
+four conditions. It stays in the module, it widens no visibility, it adds
+public-path coverage where that path can exercise the guarantee, and
+the change says what the model bounded. If the public API cannot force the
+defect, explain why and exercise that exact transition locally; an unrelated
+public cancellation test is not the regression. A model proves a property of
+the model within the schedules it explored; that is
 worth a lot and is not a proof about production. A single-shard model says
 nothing about cross-shard behaviour.
 
@@ -84,7 +88,9 @@ your mocks. For anything with a local equivalent, use the equivalent.
 the filesystem, the watcher, the clock, or the transport, production's
 ordering, deduplication, lifecycle, and retry logic must still run. Substitute
 the lowest nondeterministic boundary only. If the fake contains a second
-coordinator or state machine, the seam is too high; move it down.
+coordinator or state machine, the seam is too high; move it down. A fixture
+helper must state which root relative paths use; verify its working directory
+before trusting path-sensitive results.
 
 **Determinism is injected wherever it can be.** Clock, randomness, scheduling,
 and ordering arrive as parameters. A test that passes ninety-nine times in a
@@ -129,6 +135,13 @@ including the same bytes arriving in different-sized pieces: split the input at
 every point and check the answer does not change, with near-misses that must
 still count as incomplete. When two inputs disagree and one wins, check the
 losing one is removed from what gets passed on, whichever order they came in.
+For a reusable connection, follow partial, unread or cancelled bodies with the
+next message and assert raw framing and connection fate. Use an independent
+encoder/parser or raw vectors; two wrappers over one parser are one oracle.
+For a reversible codec, check encoding and decoding independently as well as
+round trips; one-way formats need only their promised direction. Freeze
+callback count or order only when promised, and check panic cleanup when an
+optimized traversal changes calls into user code.
 
 **Async assertions poll by default.** Sample the observable state until the
 condition holds or a timeout fires. A fixed sleep is either slow or flaky, and
@@ -143,6 +156,12 @@ misdirection for whoever debugs it later.
 **Name the test after the behaviour**, in domain language: what it does, under
 what condition, with what result. A numbered test name is a note saying "I did
 not know what I was asserting".
+
+**Run generated artifacts in their consumer.** Text assertions on a completion
+script do not show its shell can execute it. Likewise run shipped native
+binaries on the claimed ABI floor, and host/URL-scheme changes in the actual
+WebView: check rendering, navigation origin and permissions. A lower-layer
+round trip establishes only that layer. State unavailable platforms.
 
 **When automation cannot observe the thing**, such as a native or foreign
 lifecycle with no harness, say so, and attach reproducible before-and-after

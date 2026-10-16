@@ -132,10 +132,14 @@ it does not need a state-machine framework or a new ADR.
 
 **Keep decisions separate from effects.** Where practical, a pure step takes
 the current state and event and returns a validated next state and intended
-effects, or a typed refusal. Orchestration performs the effects and feeds their
-observed outcomes back to the owner. Define the point at which state becomes
+effects, or a typed refusal. Distinguish written, unchanged and rejected when
+only actual writes should notify dependents. Orchestration performs the
+effects and feeds their observed outcomes back to the owner. Define the point at which state becomes
 visible or durable, and what remains authoritative if an effect fails or its
 outcome is unknown. Each intermediate state must have an honest meaning.
+Moving validation from definition to use changes which unused declarations
+are checked; treat that
+error timing as part of compatibility.
 
 **Prefer sequential work with one writer per consistency boundary.** Concurrent
 work needs a concrete reason, such as responsiveness or independent I/O. Name
@@ -206,8 +210,9 @@ Design the interrupted case before the happy path. The happy path will be
 fine; the system's real shape is decided by what happens when it is stopped,
 repeated, or entered twice.
 
-- **One state, one representation.** A sentinel meaning two things will be read
-  as the wrong one, and the case where it matters is always a retry or a
+- **One meaning per state; one authority per fact.** Necessary mirrors across
+  native or process boundaries have one owner keeping them consistent. A sentinel
+  meaning two things will be read as the wrong one, and the case where it matters is always a retry or a
   restart. Give each state its own name before you need to tell them apart.
 - **What you saw is a clue, not the fact you care about.** An empty read, a
   zero, a `None`, a timeout, a process exiting, a request from localhost, a
@@ -223,7 +228,10 @@ repeated, or entered twice.
   loudly.
   A temporary `Pending` may mean the scheduler yielded, not that a queue is
   empty. If taking work changes available capacity, reconcile the published
-  readiness at that transition, not just when work was queued.
+  readiness at that transition, not just when work was queued. Empty bytes do
+  not prove a decoder has no unfinished record in its private state.
+  Name the event that starts a deadline. Moving a timeout past setup need not
+  mean moving the request too; preserve message and acknowledgement order.
 - **An id is only unique where it was made.** A counter that restarts at zero
   each run, or a slot number that gets reused, will hand out the same id
   twice. If you combine things built separately, make the ids unique when you
@@ -239,11 +247,14 @@ repeated, or entered twice.
   turned into something else before use (a host name into an address, a link
   into its target, a relative path into a full one), run the check on the
   result, at the step that uses it. A check on the name can reject early, but
-  it cannot be the only check.
+  it cannot be the only check. Saved output that can move needs internal references
+  anchored to that output; external references keep their own identity. Check
+  old stored forms and whether older readers understand the new form.
 - **Anything reserved is rolled back or filled.** A count, a slot, or a
   published handle for a participant that a failing constructor never created
   is a peer waiting forever. Inject the failure at each setup position and ask
-  who wakes the ones already started.
+  who wakes the ones already started. A published placeholder needs an owner
+  that outlives its initiator, or cancellation must fill or revoke it for peers.
 - **Do not hold shared capacity for work that does not exist yet.** One idle
   stream holding a single unit of a shared window can stop every other
   stream. Take capacity when there is real work to use it, unless a standing
@@ -265,16 +276,18 @@ repeated, or entered twice.
 - **Surrounding settings are inputs.** The current folder, environment
   variables, language settings, the clock, the operating system, whatever a
   package registry calls "latest" today: if one of these changes what your
-  code does, read it once at the start and pass the value along. Do not let
-  each layer look it up again, because they may get different answers. When
-  several places need the same setting, one function works it out for all of
+  code does, decide whether it is a stable snapshot or deliberately live state.
+  Pass snapshots along. For live process-wide changes, one owner coordinates
+  mutation and dependent native-cache refresh; a lock covers only participants
+  that use it. When several places need the same setting, one function works it out for all of
   them. When work is prepared on one machine and runs on another (a
   cross-build, a remote job, saved config), say whose rules each value follows
   and check it by those rules.
-- **Cleanup is structural, never remembered.** Tie removal to a scope, a guard,
-  or a lifetime, not to a teardown call on every exit path, because the path
-  that gets forgotten is the successful one. A resource owned by a branch is
-  acquired by that branch, as late as possible, not up front for every branch.
+- **Cleanup ownership starts at acquisition.** Tie removal to a scope, guard,
+  or lifetime before the next fallible step, including partial setup. A cleanup
+  method on the finished object does not cover failure before that object
+  exists. A resource owned by a branch is acquired by that branch, as late as
+  possible, not up front for every branch.
   Clean up only what you created. By the time you delete a shared file or
   slot, someone newer may have replaced it with their own; check it is still
   yours first.
@@ -284,8 +297,9 @@ repeated, or entered twice.
   documented guarantee proves no outside user remains.
 - **Returning a resource includes notifying live waiters owed that change.**
   Name who can still wait, what lets them proceed, and what makes them runnable.
-  A peer known to be closed needs no wake. If liveness cannot be decided
-  safely, a redundant wake is better than missing a required one.
+  Skip a closed peer only if closure already woke or cancelled its waiters,
+  or none can exist. If liveness cannot be decided safely, a redundant wake
+  is better than missing a required one.
 - **Release transient state at its lifecycle boundary.** A long-lived owner
   holds heavy phase-specific state no longer than the phase, with a defined way
   to re-acquire it if a later legal event needs it. Before freeing something
@@ -297,12 +311,16 @@ repeated, or entered twice.
   second attempt recognisable. Some things must happen exactly once, like
   freeing memory. If several paths could each do it (normal close, shutdown,
   timeout, the garbage collector), give one owner a single "I'll do it" claim.
-  Whichever path takes the claim does the work; the others do nothing. No path
-  should guess from its own notes whether it already happened.
+  Take the claim before calling out; deferred unregistration cannot prevent
+  a queued replay by itself. Whichever path takes the claim does the work;
+  the others do nothing. No path should guess from its own notes whether it
+  already happened.
 - **A temporary missing prerequisite does not finish accepted work.** Retain
   work that the contract says should retry, and say what schedules another
   attempt. Remove it on success or a defined cancellation or terminal refusal,
   rather than consuming it merely because its dependency is not ready yet.
+  Before retrying after fallback, require progress toward the retry condition
+  or stop with the defined outcome instead of recursively repeating recovery.
 - **Put a rule where every path has to pass.** A limit, a "rebuild needed"
   flag, a permission check: if only one caller looks at it, the other caller
   skips it. Put it in the one place every request goes through, and keep it
@@ -341,9 +359,9 @@ repeated, or entered twice.
 
 ## 4. Tests
 
-**A change either adds behaviour or fixes broken behaviour. Both have a test
-that would have failed before.** If you cannot write one, say so in the change
-and say why.
+Choose evidence for the kind of change using [testing](references/testing.md#what-gets-a-test),
+including unchanged-contract evidence for a refactor. If a check cannot be
+written or run, say why.
 
 The rules for what to test, how, and what not to, live in
 [testing](references/testing.md). The ones you will need on every change:
@@ -397,20 +415,22 @@ Do not sprinkle it. Locate it.
    memory it used as well as how soon the first result appeared. For code-size
    or compile-time work, report the counter-metrics too (build time, runtime if
    dispatch changed). Mixed results are reported as mixed, not summarised as
-   "faster".
-7. **Skip work only when its result cannot reach anything**: no future
-   iteration, no output, no error, and nothing still owed to someone else: a
-   close, a cancel, a release, or waking a waiter. Keep the structural
+   "faster". For incremental work, vary unchanged input, one changed item and
+   full invalidation; vary live registry size separately from actual removals.
+7. **Skip work only when no obligation remains unsatisfied.** A durable write
+   can be skipped if the same complete state is already durable. Keep distinct
+   terminal writes and anything still owed to an output, future iteration,
+   error, close, cancel, release or waiter. Keep the structural
    bookkeeping the surrounding protocol needs. Test it by putting something
    malformed where the work would have happened and asserting nothing
    surfaces.
 8. **Do not start work before its consumer can schedule it.** If the consumer
    owns batching, admission, or priority, construction stays lazy; an operation
    that is already running when it is handed over makes the window decorative.
-9. **Prefer once-and-only-if-needed** over eager, and eager over recomputed.
-   Something prepared once lives only as long as whatever proves it cannot
-   change. If preparing it can fail, remember the failure too, so every call
-   gets the same answer.
+9. **Prepare once only while the result stays valid.** Include the selected
+   fields and operation direction in that validity argument; cheap recomputation
+   can be safer than a cached flag. Cache failures only for their valid lifetime,
+   so a temporary failure does not become permanent by accident.
 10. **Revert an optimisation you cannot maintain.** Whatever the benchmark says,
     code nobody can safely modify is a liability.
 11. **A tuned number says what it was tuned for.** Next to a magic number like

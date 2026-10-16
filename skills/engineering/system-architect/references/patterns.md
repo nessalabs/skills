@@ -31,7 +31,9 @@ has a rival.
 defines the traits it needs from the outside world (how to spawn, sleep, read,
 write) and ships the adapters for a specific environment in a separate
 package. The core has no opinion about its host; the opinion lives in one
-place.
+place. I/O adapters also preserve pinning, initialized versus filled bytes,
+Pending/wakeup, EOF and shutdown semantics. A public trait replacement needs
+compatibility evidence for the old and alternate adapter paths.
 
 **Moving a leaked choice back to the edge.** When an implementation choice has
 leaked into the core as a generic parameter or a core feature flag, the
@@ -83,10 +85,10 @@ an owner.
 
 ## Feature and capability gating
 
-**Never write a raw conditional-compilation attribute at a call site.** Define
-a named macro per capability in one file; every call site uses the name. The
-answer to "what does this feature actually enable" is then a file you read.
-This is mechanism-versus-policy at the build level.
+**Give repeated capability gates one owner.** Keep cross-path build policy in
+one named condition or wrapper. A local `cfg` or `cfg_attr` at its owning
+implementation or test is fine when it describes that site's mode, rather than
+repeating policy.
 
 **Complementary conditions are syntactically recognisable as complements.** One
 is written as exactly `not(...)` around what the other writes; no boolean
@@ -108,6 +110,11 @@ must build and test it enabled, from the change that introduces the gate. That
 is what makes developing a large feature on the main branch cheaper than a
 long-lived branch. Give the gate a stabilisation or removal criterion when you
 add it.
+
+**A helper process needs its own capability declaration.** Pass a selected
+API/ABI level at spawn and check support before the first dependent call in
+each process. Scope the value to those children; declaring an older version
+does not make newer compiled bindings compatible.
 
 ---
 
@@ -143,7 +150,8 @@ cheaper. The caller calls one method and never checks which type it got.
 Also, the fast path's needs are not the caller's problem: if it needs sorted
 input, do not sort the user's meaningful data to suit it. Have it start over
 when input goes backwards, and keep the strict version for callers who already
-promise the order.
+promise the order. Offset corrections must use the framing actually consumed;
+fall back when an anchor or variable-width boundary makes that uncertain.
 
 **Only reorder, replace, or skip steps when you can say why it is safe.** Moving
 a filter before another step is fine only if you can say why the result is the
@@ -152,7 +160,10 @@ benchmarks well" or "the current backend happens to tolerate it". Check overlap,
 evaluation order, and side effects; if that check is expensive, run it after the
 cheap filters pass, but do not weaken it. Anything that depends on order, on
 neighbouring rows, or on a running total blocks the move until you can show why
-it is safe. For plugin code you cannot see inside, the plugin must declare the
+it is safe. A projection that redefines a name changes what a predicate on
+that name means, even if its type stays the same. Supply cost evidence before
+the decision that uses it; attaching it later cannot justify an earlier choice. For plugin code you cannot
+see inside, the plugin must declare the
 properties the optimiser relies on (same input gives same output, no side
 effects, works row by row), and those flags are saved along with it. If it
 declares nothing, assume the worst and take the normal path. Do not add a
@@ -162,9 +173,11 @@ setting that asks users a question they cannot answer either.
 decides whether to skip the work is built from the inputs, since the output does
 not exist yet; list every input that changes it. Where one step's output is the
 next step's input, fingerprint that output itself rather than a list of fields
-someone has to keep up to date. Leave out things that only say *where* it is
-(file paths, file names). Or keep that input out of the cached value: share the
-expensive part, and give each request a small handle carrying its own context. A
+someone has to keep up to date. Leave out location only when it cannot change
+the result. An immutable file identity and storage/auth context may identify
+the bytes themselves. Scope an
+event ordinal or source offset to the parse and lifetime where it is unique.
+Or keep that input out of the cached value: share the expensive part, and give each request a small handle carrying its own context. A
 shared entry filled by the first request must not keep that request's base path
 or settings inside it. Putting every context into the key also fixes the bug,
 but can destroy the sharing the cache existed for. Test two contexts sharing one
@@ -182,7 +195,9 @@ content.
 The signal used to notice a change must cover every legal mutation that changes
 the answer. Length misses a same-length replacement; a version works only if
 every relevant writer updates it. Restrict writers, maintain the cache with
-them, or invalidate explicitly when the cheap signal is insufficient.
+them, or invalidate explicitly when the cheap signal is insufficient. Raw
+source equality and resolved-target equality serve different purposes: a source change may invalidate projections even when
+both names resolve to the same target.
 
 **A value picked from several sources is worked out, not stored.** When an
 override, a setting, and a default compete, keep each one where it is. One
@@ -202,6 +217,12 @@ If a compatibility fallback replaces an unsupported parser or verifier, name
 the validity, authority, error and resource guarantees it must still establish.
 Unsupported does not mean trusted; reject a restriction the fallback cannot
 safely check rather than treating it as absent.
+For concurrent materialization, stage and publish under a proven atomic
+filesystem contract, preserving an incumbent valid copy on failure. A directory
+existing is not completion; a marker proves it only when its publisher controls
+all construction. Bound abandoned stages without removing live ones.
+A persisted projection must preserve fields and trust tags its consumers need;
+compare consumers before/after round trip and account for future schema fields.
 
 **A new engine starts compatible with nothing.** When an established feature
 gains a second execution path, classify every existing option combination:
@@ -288,7 +309,10 @@ Failure behaviour is public API with its own suite.
 **Cleanup has an owner on each side of a boundary.** When an aborted operation
 must clean up, say which side removes what: the writer removes its own
 unfinalised output; the transaction removes the finalised output. Stated
-explicitly, or both sides assume the other did it.
+explicitly, or both sides assume the other did it. Separate failure before
+handoff, publication with uncertain acknowledgement, and confirmed completion.
+Apply the [cleanup lifetime rule](../../coding/SKILL.md#3-failure-first) to
+each phase; the error status alone does not settle ownership.
 
 **Cite the issue that caused the design.** "Wider integers here to mitigate a
 wraparound race; see issue NNNN." The history of why the obvious version was
@@ -299,7 +323,9 @@ next to the code.
 upstream fix to permanent local workarounds. If the upstream API's broader
 compatibility promise prevents the caller-specific change, keep the workaround
 narrow, link the limitation and state when to delete it. Recheck that limitation
-rather than assuming an old discussion still applies.
+rather than assuming an old discussion still applies. An I/O wrapper must
+honor selector rearming after `WouldBlock`; progress cannot depend on a peer
+exiting. Avoid duplicating policy already owned by the lower adapter.
 
 ---
 
@@ -323,7 +349,9 @@ bytes", not "laid out exactly like this".
 **A dependency is a policy decision with a memory.** A change reverted with
 "we removed this dependency before when it raised its minimum compiler version
 and broke ours" is institutional memory applied as a rule. The re-landed
-version using the in-house equivalent was smaller.
+version using the in-house equivalent was smaller. Vendoring moves update
+and security ownership in-house: preserve provenance and license notices,
+inventory public exports and consumer compatibility, and name the exit plan.
 
 **Reason forward to the unbuilt feature.** When a refactor lands ahead of the
 capability that motivates it, the reviewer's job is to ask whether it will
@@ -335,12 +363,12 @@ extensions need it, introduce an explicit handle.** The reason encapsulation
 fails is exactly vertical isolation: the core cannot write the functions in
 advance because it does not know what product-specific code will do.
 
-**A mechanical mega-change is justified by the test suite, not by review.**
-Replacing a hand-written layer with a specification plus generation, tens of
-thousands of lines, is reviewed with one honest argument: the existing tests
-will catch any divergence. It is only available to a codebase that earned the
-tests first, and it is the strongest argument for generating repetitive code
-from a spec.
+**A large mechanical rewrite earns lighter review only where behavior is
+preserved.** Review the specification and representative generated output.
+Isolate semantic choices such as parser precedence or platform support, and
+[verify generated consumers](../../coding/references/testing.md#rules) against
+the contract. Existing tests establish only
+what they cover, not every possible divergence.
 
 **Revert rather than patch a regression.** The instructive sequence, seen more
 than once: a structural fix replaces an escape hatch; ships with benchmarks;
