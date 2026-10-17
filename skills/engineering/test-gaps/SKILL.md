@@ -40,16 +40,17 @@ no remote at all, use the local default branch and say so. The end of the
 range is the tip of `<remote>/<default>` when you start. Find the default
 branch's name with `git ls-remote --symref <remote> HEAD` rather than guessing
 `main`. Fetch it first, and fetch enough history to reach the start (`git
-fetch <remote> --shallow-since="<date>"`, or `git fetch <remote> --unshallow`
-in a shallow clone); never work from a local branch that may be stale. Turn a
-date into a commit, so the range has a fixed edge and does not depend on
-commit dates being in order: `git rev-list -1 --first-parent --before="<date>"
-<remote>/<default>` (if it prints nothing, the whole branch is newer than the
-date: list it all with `git log --first-parent --reverse <tip>`, since
-`<root>..<tip>` would leave the root out). Then check `git merge-base
---is-ancestor <start> <remote>/<default>`; if it is not an ancestor, it was
-mistyped or history was rewritten. Ask the person if there is one; an
-unattended run says so and falls back to the 24-hour window.
+fetch <remote> <default>:refs/remotes/<remote>/<default>`, naming the branch
+so a single-branch clone still updates it, plus `--shallow-since="<date>"` or
+`--unshallow` in a shallow clone); never work from a local branch that may be
+stale. Turn a date into a commit, so the range has a fixed edge and does not
+depend on commit dates being in order: `git rev-list -1 --first-parent
+--before="<date>" <remote>/<default>` (if it prints nothing, the whole branch
+is newer than the date: list it all with `git log --first-parent --reverse
+<tip>`, since `<root>..<tip>` would leave the root out). Then check `git
+merge-base --is-ancestor <start> <remote>/<default>`; if it is not an
+ancestor, it was mistyped or history was rewritten. Ask the person if there is
+one; an unattended run says so and falls back to the 24-hour window.
 
 List the entries with `git log --first-parent --reverse <start>..<tip>`.
 First-parent keeps one entry per merged change when changes land squashed or
@@ -188,7 +189,8 @@ each gap, and stops; it writes no tests and no state file.
    reviewed entries from the start of the range: the tip you started from when
    you finished, an earlier entry when the cap stopped you. Only do this when
    the range started from the state file itself (or the file did not exist
-   yet); a range the person chose may have skipped commits the file has not
+   yet, or held a commit no longer on the branch and the run fell back to the
+   window); a range the person chose may have skipped commits the file has not
    seen, so it leaves the file alone. Never record a commit past an entry with
    no row.
 
