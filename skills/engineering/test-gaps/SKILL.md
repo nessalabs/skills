@@ -66,6 +66,10 @@ start a new test framework.
 
 ## Procedure
 
+A review-only run (a dry run, or someone asking only "why did the tests miss
+these") does steps 1 to 5, reports the table with the case it would add for
+each gap, and stops; it writes no tests and no state file.
+
 1. **Check for an earlier run's work.** Every run's pull request has a title
    starting `test-gaps:`. Search open pull requests for that prefix, and leave
    out any fix they already cover, so two runs never add the same case. Use
@@ -83,11 +87,11 @@ start a new test framework.
    note it: it is evidence of "fake disagrees with real" for the product fix
    it had been hiding. A pure feature, refactor, or documentation change is
    not a fix; list it as skipped, with one word saying why; skipped entries
-   share one line per reason in the report. Review at most 20 fixes (not
-   entries) in one run, oldest first. If the cap leaves fixes unreviewed and
-   there is no state file to resume from, list them in the pull request (or in
-   an issue, if there is no pull request) as left for the next run or a
-   person, so they are not silently dropped.
+   share one line per reason in the report, each listed by its hash. Review at
+   most 20 fixes (not entries) in one run, oldest first. If the cap leaves
+   fixes unreviewed and there is no state file to resume from, list them in
+   the pull request (or in an issue, if there is no pull request) as left for
+   the next run or a person, so they are not silently dropped.
 
 3. **For each fix, state the bug as something observable.** One sentence a
    test could check: "the second message in a reopened conversation was never
@@ -145,10 +149,6 @@ start a new test framework.
    the reproduction, leave the case out of this pull request, and say so in
    the report.
 
-   A review-only run (a dry run, or someone asking only "why did the tests
-   miss these") stops after step 5 and reports the table, with the case it
-   would add for each gap.
-
 8. **Open one pull request** titled `test-gaps: <range>` with the new cases,
    described per [`pull-requests`](../pull-requests/SKILL.md). Before/After
    says which range was reviewed and how many gaps were closed. Under *How we
@@ -159,13 +159,13 @@ start a new test framework.
    that message, kept in the job's log, is the only record, and that is
    enough.
 
-9. **Record where you stopped.** An entry counts as reviewed once it has a
-   row, "unclear" and "skipped" included. On a machine that keeps its files
-   between runs (a person's own, not a fresh cloud job), create or update the
-   state file with the last entry of the unbroken run of reviewed entries from
-   the start of the range: the tip you started from when you finished, an
-   earlier entry when the cap stopped you. Never record a commit past an entry
-   with no row.
+9. **Record where you stopped.** An entry counts as reviewed once its hash
+   appears in the report, "unclear" and "skipped" included. On a machine that
+   keeps its files between runs (a person's own, not a fresh cloud job),
+   create or update the state file with the last entry of the unbroken run of
+   reviewed entries from the start of the range: the tip you started from when
+   you finished, an earlier entry when the cap stopped you. Never record a
+   commit past an entry with no row.
 
 ## Running on a schedule
 
