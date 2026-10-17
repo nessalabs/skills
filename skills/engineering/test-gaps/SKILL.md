@@ -25,23 +25,30 @@ Pick the start of the range, first match wins:
 1. **What the person asked for**: a commit, a tag, or a date ("since
    Monday", "since abc123").
 2. **The last run on this machine**, if a state file exists at
-   `${XDG_STATE_HOME:-~/.local/state}/test-gaps/<host>/<owner>/<repo>`. Its
-   only content is the commit hash the previous run reviewed up to. It lives
+   `${XDG_STATE_HOME:-~/.local/state}/test-gaps/<host>/<owner>/<repo>`,
+   where `<host>` is the remote's host (`github.com`). Its only content is
+   the commit hash the previous run reviewed up to. It lives
    outside the repository, so nothing is committed and every person keeps
    their own.
-3. **Otherwise, the last 24 hours** of the default branch. A daily schedule
-   with this default covers every commit once, with no state to keep.
+3. **Otherwise, the last 24 hours** of the default branch. A schedule
+   should ask for a window a little longer than its interval ("since 26
+   hours ago" for a daily run), because jobs start late; the overlap is
+   harmless, since step 5 finds fixes already covered.
 
 The end of the range is the tip of `origin/<default>` when you start. Fetch
 it first, and fetch enough history to reach the start (`git fetch
 --shallow-since=<date>` or `--unshallow` in a shallow clone); never work from
-a local branch that may be stale. If the start is a commit, check
+a local branch that may be stale. Turn a date into a commit, so the range
+has a fixed edge and does not depend on commit dates being in order:
+`git rev-list -1 --first-parent --before=<date> origin/<default>` (if it
+prints nothing, the whole branch is newer than the date; start from its root
+commit). Then check
 `git merge-base --is-ancestor <start> origin/<default>`; if it is not an
 ancestor, history was rewritten, so say so and fall back to the 24-hour
 window.
 
-List the entries with `git log --first-parent --reverse <start>..<tip>`, or
-`--since=<date>` for a date. First-parent keeps one entry per merged change,
+List the entries with `git log --first-parent --reverse <start>..<tip>`.
+First-parent keeps one entry per merged change,
 whether it was squashed or merged. For an entry that is a real merge commit,
 read its change with `git diff <sha>^1 <sha>` (`git show` prints a combined
 diff that is often empty) and undo it with `git revert -m 1`.
@@ -58,9 +65,10 @@ not start a new test framework.
 
 ## Procedure
 
-1. **Check for an earlier run's work.** Look for open pull requests from
-   earlier test-gap runs. Leave out any fix they already cover, so two runs
-   never add the same case.
+1. **Check for an earlier run's work.** Every run's pull request has a
+   title starting `test-gaps:`. Search open pull requests for that prefix,
+   and leave out any fix they already cover, so two runs never add the same
+   case.
 
 2. **Pick out the fixes.** Read each entry's subject and body, and its linked
    pull request or issue when the message is too thin ("Merge pull request
@@ -72,7 +80,10 @@ not start a new test framework.
    CI tooling is skipped as `tooling`, unless the bug it was hiding reached
    the product. A pure feature, refactor, or documentation change is not a
    fix; list it as skipped, with one word saying why. Review at most 20
-   fixes in one run, oldest first.
+   fixes in one run, oldest first. If the cap leaves fixes unreviewed and
+   there is no state file to resume from, list them in the pull request (or
+   in an issue, if there is no pull request) as left for the next run or a
+   person, so they are not silently dropped.
 
 3. **For each fix, state the bug as something observable.** One sentence a
    test could check: "the second message in a reopened conversation was
@@ -126,21 +137,23 @@ not start a new test framework.
    case as the reproduction, leave the case out of this pull request, and
    say so in the report.
 
-8. **Open one pull request** with the new cases, described per
+8. **Open one pull request** titled `test-gaps: <range>` with the new
+   cases, described per
    [`pull-requests`](../pull-requests/SKILL.md). Before/After says which
    range was reviewed and how many gaps were closed. Under *How we checked
    it*, one row per reviewed entry: commit, the observable bug, why the tests
    missed it, and what holds it now (an existing test, a new case, an issue,
    unproven, or a skip reason). If no gaps were found, open no pull request
-   and give the table in your summary instead.
+   and end with the table as your final message; in an unattended run that
+   message, kept in the job's log, is the only record, and that is enough.
 
 9. **Record where you stopped.** An entry counts as reviewed once it has a
-   row, "unclear" and "skipped" included. If a state file is in use, write
-   the last entry of the unbroken run of reviewed entries from the start of
+   row, "unclear" and "skipped" included. On a machine that keeps its files
+   between runs (a person's own, not a fresh cloud job), create or update
+   the state file with the last entry of the unbroken run of reviewed entries from the start of
    the range: the tip you started from when you finished, an earlier entry
    when the cap stopped you. Never record a commit past an entry with no
-   row. Without a state file, say in the summary where you stopped if it
-   was short of the tip, so the next run can be pointed there.
+   row.
 
 ## Running on a schedule
 
@@ -150,6 +163,6 @@ checks green, then mark it ready for review. When a check fails, first find
 out whether it fails on the default branch too. If it does, say in the pull
 request that it was already failing, leave it a draft, and stop; do not widen
 the change to fix it. A failure you caused and could not fix is reported in
-the pull request, never left silent. Schedule the run daily to match the
-24-hour default; a cloud run starts with no state file, so it relies on that
-window.
+the pull request, never left silent. A fresh cloud job starts with no state
+file, so it relies on the date window; schedule it daily and ask for the
+slightly longer window described above.
