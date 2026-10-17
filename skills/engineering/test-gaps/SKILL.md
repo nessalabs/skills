@@ -30,25 +30,46 @@ under.
    case. Read that section and follow it; do not guess a suite from the
    directory layout.
 
-If either is missing, stop and say which. If the checkpoint commit is not an
-ancestor of the default branch (history was rewritten), stop and report it
-rather than picking a new starting point yourself.
+If either is missing, stop and say which.
+
+## Before you start
+
+- **One run at a time.** Look for an open pull request from an earlier run
+  (one that changes the checkpoint file). If there is one, stop and report
+  it. The checkpoint only moves when that pull request merges, so a second
+  run would review the same range and add the same cases again.
+- **Full history.** Scheduled jobs often start from a shallow clone, where
+  the checkpoint commit is simply absent. Fetch the whole default branch
+  (`git fetch --unshallow origin` when the clone is shallow) and work from
+  `origin/<default>`, never from a local branch that may be stale.
+- **The checkpoint is still on the branch.** Check
+  `git merge-base --is-ancestor <checkpoint> origin/<default>`. If it is not
+  (history was rewritten), stop and report it rather than picking a new
+  starting point yourself. A commit that cannot be found at all is a fetch
+  problem, not a rewrite.
 
 ## Procedure
 
-1. **List what is new.** Fetch the default branch and take its tip now as
-   the end of this run's range. List merges in order:
+1. **List what is new.** Take the tip of `origin/<default>` now as the end
+   of this run's range. List merges in order:
    `git log --first-parent --reverse <checkpoint>..<tip>`. First-parent keeps
    one entry per merged pull request, whether it was squashed or merged.
    If the range is empty, stop: there is nothing to do and nothing to commit.
+   For an entry that is a real merge commit, read its change with
+   `git diff <sha>^1 <sha>` (`git show` prints a combined diff that is often
+   empty) and undo it with `git revert -m 1`. Review at most 20 fixes in one
+   run, oldest first; the rest wait for the next run.
 
 2. **Pick out the fixes.** Read each entry's subject, body, and linked pull
    request or issue. A fix is a change that corrected behaviour already on
    the default branch: a reported bug, a regression, a revert, a flaky test
    whose cause was real. Judge by what changed, not by a `fix:` prefix; many
    fixes are titled as features ("let a conversation take messages again
-   after a failed turn"). A pure feature, refactor, or documentation change
-   is not a fix; list it as skipped, with one word saying why.
+   after a failed turn"). A change that bundles a fix with new work counts;
+   review only the fix part. A fix to a test, a fake, or CI tooling is
+   skipped as `tooling`, unless the bug it was hiding reached the product.
+   A pure feature, refactor, or documentation change is not a fix; list it
+   as skipped, with one word saying why.
 
 3. **For each fix, state the bug as something observable.** One sentence a
    test could check: "the second message in a reopened conversation was
@@ -88,34 +109,44 @@ rather than picking a new starting point yourself.
    - The new case must fail with the fix undone and pass with it, checked
      the same way as in step 5. A case that passes either way is not
      coverage; drop it.
-   - Write it to the [testing rules](../coding/references/testing.md): name
-     the defect, assert the end state, and leave nothing running.
+   - Write it as a regression test, as
+     [testing](../coding/references/testing.md#regression-tests-carry-the-mechanism)
+     and [`method`](../method/SKILL.md#turn-the-finding-into-an-artefact)
+     describe: named after the defect, carrying its mechanism and the fix
+     commit, plus whatever the suite's own instructions add.
    - A bug the suite cannot express (a pixel, a platform the suite does not
      run on) goes in the report with where it should be held instead.
 
 7. **If the bug is back, stop treating it as coverage.** When a new case
    fails on the current branch with the fix in place, you have found a live
-   defect. Do not weaken, skip, or delete the case to get a green run. Open
-   an issue with the failing case as the reproduction, leave the case out of
+   defect. Do not weaken, skip, or delete the case to get a green run. Look
+   for an existing issue about it first; if none, open one with the failing
+   case as the reproduction, leave the case out of
    this pull request, and say so in the report.
 
-8. **Move the checkpoint.** Set it to the tip from step 1, not to whatever
-   the branch tip is by the time you finish. If you could not finish the
-   whole range (a very long backlog), set it to the last commit you fully
-   reviewed. Never move it past a commit you did not review.
+8. **Move the checkpoint.** An entry counts as reviewed once it has a row
+   in the report, "unclear" and "skipped" included. Set the checkpoint to
+   the last entry of the unbroken run of reviewed entries from the start of
+   the range: the tip from step 1 when you finished, an earlier entry when
+   the cap or a problem stopped you. Never move it past an entry with no
+   row, and never to a tip that appeared after step 1.
 
 9. **Open one pull request** with the new cases and the checkpoint change
-   together, described per [`pull-requests`](../pull-requests/SKILL.md). Its
-   centre is one row per reviewed change: commit, the observable bug, why
-   the tests missed it, and what holds it now (an existing test, a new case,
-   an issue, or "not a fix"). If no gaps were found, the pull request
-   carries only the checkpoint change and that table; it is the record that
-   the range was reviewed.
+   together, described per [`pull-requests`](../pull-requests/SKILL.md).
+   Before/After says which range was reviewed and how many gaps were closed.
+   Under *How we checked it*, one row per reviewed entry: commit, the
+   observable bug, why the tests missed it, and what holds it now (an
+   existing test, a new case, an issue, or a skip reason). If no gaps were
+   found, the pull request carries only the checkpoint change and that
+   table; it is the record that the range was reviewed.
 
 ## Running on a schedule
 
 An unattended run has no one to ask. Make every call yourself and write each
-one into the pull request. Open the pull request as a draft, drive its checks
-green, and report a failure you could not fix in the pull request instead of
-leaving it silent. An empty range ends the run with no branch and no pull
-request.
+one into the pull request. Open the pull request as a draft and drive its
+checks green, then mark it ready for review. When a check fails, first find
+out whether it fails on the default branch too. If it does, say in the pull
+request that it was already failing, leave it a draft, and stop; do not widen
+the change to fix it. A failure you caused and could not fix is reported in
+the pull request, never left silent. An empty range, or an earlier run's
+pull request still open, ends the run with no branch and no pull request.
