@@ -1,6 +1,6 @@
 ---
 name: test-gaps
-description: "Walk the fixes merged since a recorded checkpoint commit, work out for each one why the existing tests let the bug through, and add the missing coverage to the repository's chosen regression suite, all in one pull request that also moves the checkpoint forward. Built to run unattended on a schedule as well as by hand. Use when asked to find test gaps, do a retro on recent bugs, check why tests missed a fix, or when a scheduled job invokes /test-gaps."
+description: "Look over the bug fixes that landed recently (by default the last 24 hours of the default branch), work out for each one why the existing tests let the bug through, and add the missing coverage, in one pull request. Works on any repository with no setup, and runs unattended on a schedule as well as by hand. Use when asked to find test gaps, do a retro on recent bugs, check why tests missed a fix, or when a scheduled job invokes /test-gaps."
 ---
 
 # Test gaps
@@ -10,66 +10,69 @@ adds a test, but that test was written by someone who already knew the bug,
 so it often checks the one input that broke and nothing around it. This skill
 goes back over recent fixes and asks a different question: **what did our
 tests look at, and what did the bug need that they never looked at?** The
-answer is a missing condition (a second conversation, a restart, a mode switch
-mid-turn, a slow reply). Add that condition to the suite, and the next bug of
+answer is a missing condition (a second request, a restart, a setting changed
+partway, a slow reply). Add that condition to the tests, and the next bug of
 the same shape fails a test instead of reaching a user.
 
 That question is [core rule 2](../system-architect/SKILL.md#core-rule-2-a-check-only-holds-for-what-it-looked-at)
 applied to tests: a passing test only vouches for the conditions it ran
 under.
 
-## What the repository provides
+## Which commits to look at
 
-1. **A checkpoint file.** Default path `.github/test-gap-checkpoint`; the
-   repository's agent instructions may name another. The first line that is
-   not blank and does not start with `#` is a full commit hash. Every change
-   on the default branch up to and including that commit has been reviewed.
-   Nothing else in the file matters.
-2. **A suite of record.** The repository's agent instructions or coding
-   standards name the suite new coverage goes into and say how to add a
-   case. Read that section and follow it; do not guess a suite from the
-   directory layout.
+Pick the start of the range, first match wins:
 
-If either is missing, stop and say which.
+1. **What the person asked for**: a commit, a tag, or a date ("since
+   Monday", "since abc123").
+2. **The last run on this machine**, if a state file exists at
+   `${XDG_STATE_HOME:-~/.local/state}/test-gaps/<host>/<owner>/<repo>`. Its
+   only content is the commit hash the previous run reviewed up to. It lives
+   outside the repository, so nothing is committed and every person keeps
+   their own.
+3. **Otherwise, the last 24 hours** of the default branch. A daily schedule
+   with this default covers every commit once, with no state to keep.
 
-## Before you start
+The end of the range is the tip of `origin/<default>` when you start. Fetch
+it first, and fetch enough history to reach the start (`git fetch
+--shallow-since=<date>` or `--unshallow` in a shallow clone); never work from
+a local branch that may be stale. If the start is a commit, check
+`git merge-base --is-ancestor <start> origin/<default>`; if it is not an
+ancestor, history was rewritten, so say so and fall back to the 24-hour
+window.
 
-- **One run at a time.** Look for an open pull request from an earlier run
-  (one that changes the checkpoint file). If there is one, stop and report
-  it. The checkpoint only moves when that pull request merges, so a second
-  run would review the same range and add the same cases again.
-- **Full history.** Scheduled jobs often start from a shallow clone, where
-  the checkpoint commit is simply absent. Fetch the whole default branch
-  (`git fetch --unshallow origin` when the clone is shallow) and work from
-  `origin/<default>`, never from a local branch that may be stale.
-- **The checkpoint is still on the branch.** Check
-  `git merge-base --is-ancestor <checkpoint> origin/<default>`. If it is not
-  (history was rewritten), stop and report it rather than picking a new
-  starting point yourself. A commit that cannot be found at all is a fetch
-  problem, not a rewrite.
+List the entries with `git log --first-parent --reverse <start>..<tip>`, or
+`--since=<date>` for a date. First-parent keeps one entry per merged change,
+whether it was squashed or merged. For an entry that is a real merge commit,
+read its change with `git diff <sha>^1 <sha>` (`git show` prints a combined
+diff that is often empty) and undo it with `git revert -m 1`.
+
+If the range is empty, stop: nothing to do, nothing to commit.
+
+## Where new tests go
+
+If the repository's agent instructions, contributing guide, or coding
+standards name a suite for regression or end-to-end coverage and say how to
+add a case, use that and follow its instructions. Otherwise put each test
+next to the existing tests for the code the fix touched, in their style. Do
+not start a new test framework.
 
 ## Procedure
 
-1. **List what is new.** Take the tip of `origin/<default>` now as the end
-   of this run's range. List merges in order:
-   `git log --first-parent --reverse <checkpoint>..<tip>`. First-parent keeps
-   one entry per merged pull request, whether it was squashed or merged.
-   If the range is empty, stop: there is nothing to do and nothing to commit.
-   For an entry that is a real merge commit, read its change with
-   `git diff <sha>^1 <sha>` (`git show` prints a combined diff that is often
-   empty) and undo it with `git revert -m 1`. Review at most 20 fixes in one
-   run, oldest first; the rest wait for the next run.
+1. **Check for an earlier run's work.** Look for open pull requests from
+   earlier test-gap runs. Leave out any fix they already cover, so two runs
+   never add the same case.
 
-2. **Pick out the fixes.** Read each entry's subject, body, and linked pull
-   request or issue. A fix is a change that corrected behaviour already on
-   the default branch: a reported bug, a regression, a revert, a flaky test
-   whose cause was real. Judge by what changed, not by a `fix:` prefix; many
-   fixes are titled as features ("let a conversation take messages again
-   after a failed turn"). A change that bundles a fix with new work counts;
-   review only the fix part. A fix to a test, a fake, or CI tooling is
-   skipped as `tooling`, unless the bug it was hiding reached the product.
-   A pure feature, refactor, or documentation change is not a fix; list it
-   as skipped, with one word saying why.
+2. **Pick out the fixes.** Read each entry's subject and body, and its linked
+   pull request or issue when the message is too thin ("Merge pull request
+   #12 from …"). Words like fix, bug, regression, revert, crash, broken,
+   missing, wrong, or "again" are the first signal, but judge by what
+   changed: many fixes are titled as features ("let a conversation take
+   messages again after a failed turn"). A change that bundles a fix with
+   new work counts; review only the fix part. A fix to a test, a fake, or
+   CI tooling is skipped as `tooling`, unless the bug it was hiding reached
+   the product. A pure feature, refactor, or documentation change is not a
+   fix; list it as skipped, with one word saying why. Review at most 20
+   fixes in one run, oldest first.
 
 3. **For each fix, state the bug as something observable.** One sentence a
    test could check: "the second message in a reopened conversation was
@@ -96,49 +99,48 @@ If either is missing, stop and say which.
    current branch would fail if the fix were undone, and that test checks
    the promise where it is made, as
    [`method`](../method/SKILL.md#2-verifying) puts it. Prove it where you
-   can: revert the fix's non-test changes in a scratch copy, run the test,
-   see it fail, throw the copy away. Where that is too costly, say the
-   verdict is inferred. A fix whose own test only checks the exact input
-   that broke is still a gap if the condition behind it is not in the suite
-   of record.
+   can: undo the fix's non-test changes in a scratch copy, run the test, see
+   it fail, throw the copy away. Where that is too costly, say the verdict
+   is inferred. A fix whose own test only checks the exact input that broke
+   is still a gap if the condition behind it is tested nowhere else.
 
-6. **Add the coverage.** For each gap, put the missing condition into the
-   suite of record, following its own instructions for adding a case.
+6. **Add the coverage.** For each gap, add a case where the section above
+   says.
    - Extend an existing case before adding a new one. Group gaps that share
      a condition; one "reopen after a restart" case can hold three fixes.
-   - The new case must fail with the fix undone and pass with it, checked
-     the same way as in step 5. A case that passes either way is not
-     coverage; drop it.
+   - A new case must be seen failing with the fix undone and passing with
+     it. If the fix cannot be undone cleanly, leave the case out and record
+     it as unproven. A case that passes either way is not coverage; drop it.
    - Write it as a regression test, as
      [testing](../coding/references/testing.md#regression-tests-carry-the-mechanism)
      and [`method`](../method/SKILL.md#turn-the-finding-into-an-artefact)
      describe: named after the defect, carrying its mechanism and the fix
-     commit, plus whatever the suite's own instructions add.
-   - A bug the suite cannot express (a pixel, a platform the suite does not
-     run on) goes in the report with where it should be held instead.
+     commit, plus whatever the repository's own instructions add.
+   - A bug the tests cannot express (a pixel, a platform CI does not run)
+     goes in the report with where it should be held instead.
 
 7. **If the bug is back, stop treating it as coverage.** When a new case
    fails on the current branch with the fix in place, you have found a live
    defect. Do not weaken, skip, or delete the case to get a green run. Look
    for an existing issue about it first; if none, open one with the failing
-   case as the reproduction, leave the case out of
-   this pull request, and say so in the report.
+   case as the reproduction, leave the case out of this pull request, and
+   say so in the report.
 
-8. **Move the checkpoint.** An entry counts as reviewed once it has a row
-   in the report, "unclear" and "skipped" included. Set the checkpoint to
+8. **Open one pull request** with the new cases, described per
+   [`pull-requests`](../pull-requests/SKILL.md). Before/After says which
+   range was reviewed and how many gaps were closed. Under *How we checked
+   it*, one row per reviewed entry: commit, the observable bug, why the tests
+   missed it, and what holds it now (an existing test, a new case, an issue,
+   unproven, or a skip reason). If no gaps were found, open no pull request
+   and give the table in your summary instead.
+
+9. **Record where you stopped.** An entry counts as reviewed once it has a
+   row, "unclear" and "skipped" included. If a state file is in use, write
    the last entry of the unbroken run of reviewed entries from the start of
-   the range: the tip from step 1 when you finished, an earlier entry when
-   the cap or a problem stopped you. Never move it past an entry with no
-   row, and never to a tip that appeared after step 1.
-
-9. **Open one pull request** with the new cases and the checkpoint change
-   together, described per [`pull-requests`](../pull-requests/SKILL.md).
-   Before/After says which range was reviewed and how many gaps were closed.
-   Under *How we checked it*, one row per reviewed entry: commit, the
-   observable bug, why the tests missed it, and what holds it now (an
-   existing test, a new case, an issue, or a skip reason). If no gaps were
-   found, the pull request carries only the checkpoint change and that
-   table; it is the record that the range was reviewed.
+   the range: the tip you started from when you finished, an earlier entry
+   when the cap stopped you. Never record a commit past an entry with no
+   row. Without a state file, say in the summary where you stopped if it
+   was short of the tip, so the next run can be pointed there.
 
 ## Running on a schedule
 
@@ -148,5 +150,6 @@ checks green, then mark it ready for review. When a check fails, first find
 out whether it fails on the default branch too. If it does, say in the pull
 request that it was already failing, leave it a draft, and stop; do not widen
 the change to fix it. A failure you caused and could not fix is reported in
-the pull request, never left silent. An empty range, or an earlier run's
-pull request still open, ends the run with no branch and no pull request.
+the pull request, never left silent. Schedule the run daily to match the
+24-hour default; a cloud run starts with no state file, so it relies on that
+window.

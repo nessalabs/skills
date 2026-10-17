@@ -69,7 +69,7 @@ you can also type them.
 | **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The description template, evidence per kind of claim, what blocks and what does not. |
 | **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, weighing evidence, or deciding what to automate, test, or run in CI. |
 | **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime path of a feature, or where a delay, hang, or duplicate could come from. Walks the syntax tree one hop at a time; marks locks, waits, handoffs, and state; ends a debugging trace with suspects and probes. `/trace`. |
-| **[test-gaps](skills/engineering/test-gaps/SKILL.md)** | You want to know why the tests let recent bugs through. Walks the fixes merged since a checkpoint commit, names what each bug needed that no test looked at, adds that to the regression suite, and moves the checkpoint, in one pull request. Runs on a schedule. `/test-gaps`. |
+| **[test-gaps](skills/engineering/test-gaps/SKILL.md)** | You want to know why the tests let recent bugs through. Reads the fixes that landed recently (the last 24 hours by default), names what each bug needed that no test looked at, and adds that as tests in one pull request. Works on any repository; runs on a schedule. `/test-gaps`. |
 | **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user says they don't follow. Lead with the plain human version. `/wdym`. |
 
 Each carries references that load only when the skill needs them: how to
