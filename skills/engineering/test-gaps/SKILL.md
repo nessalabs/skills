@@ -178,4 +178,3 @@ the change to fix it. A failure you caused and could not fix is reported in
 the pull request, never left silent. A fresh cloud job starts with no state
 file, so it relies on the date window; schedule it daily and ask for the
 slightly longer window described above.
-
