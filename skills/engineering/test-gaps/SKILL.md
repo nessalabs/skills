@@ -34,30 +34,36 @@ Pick the start of the range, first match wins:
    for a daily run), because jobs start late; the overlap is harmless, since
    step 5 finds fixes already covered.
 
-The end of the range is the tip of `origin/<default>` when you start. Find the
-default branch's name with `git ls-remote --symref origin HEAD` rather than
-guessing `main`. Fetch it first, and fetch enough history to reach the start
-(`git fetch --shallow-since=<date>` or `--unshallow` in a shallow clone);
-never work from a local branch that may be stale. Turn a date into a commit,
-so the range has a fixed edge and does not depend on commit dates being in
-order: `git rev-list -1 --first-parent --before=<date> origin/<default>` (if
-it prints nothing, the whole branch is newer than the date: list it all with
-`git log --first-parent --reverse <tip>`, since `<root>..<tip>` would leave
-the root out). Then check `git merge-base --is-ancestor <start>
-origin/<default>`; if it is not an ancestor, it was mistyped or history was
-rewritten. Ask the person if there is one; an unattended run says so and falls
-back to the 24-hour window.
+The commands below write `<remote>` for the remote the shared branch lives on:
+usually `origin`, but check `git remote` (a fork may call it `upstream`). With
+no remote at all, use the local default branch and say so. The end of the
+range is the tip of `<remote>/<default>` when you start. Find the default
+branch's name with `git ls-remote --symref <remote> HEAD` rather than guessing
+`main`. Fetch it first, and fetch enough history to reach the start (`git
+fetch --shallow-since=<date>` or `--unshallow` in a shallow clone); never work
+from a local branch that may be stale. Turn a date into a commit, so the range
+has a fixed edge and does not depend on commit dates being in order: `git
+rev-list -1 --first-parent --before=<date> <remote>/<default>` (if it prints
+nothing, the whole branch is newer than the date: list it all with `git log
+--first-parent --reverse <tip>`, since `<root>..<tip>` would leave the root
+out). Then check `git merge-base --is-ancestor <start> <remote>/<default>`; if
+it is not an ancestor, it was mistyped or history was rewritten. Ask the
+person if there is one; an unattended run says so and falls back to the
+24-hour window.
 
 List the entries with `git log --first-parent --reverse <start>..<tip>`.
 First-parent keeps one entry per merged change when changes land squashed or
 as merge commits. A repository that rebases changes onto the branch has
 several commits per change; group them by their pull request (from the forge,
-or the commit messages) and treat each group as one entry. For an entry that
-is a real merge commit, read its change with `git diff <sha>^1 <sha>` (`git
-show` prints a combined diff that is often empty). To put a bug back, reverse
-only the non-test files of a change, never a whole revert, which would remove
-the fix's own tests too: `git diff <sha>^1 <sha> -- <non-test paths> | git
-apply -R`.
+or the commit messages) and treat each group as one entry. Each entry's change
+is `git diff <before> <after>`, where `<after>` is its last commit and
+`<before>` the commit just before it on the branch (`<sha>^1` for one commit
+or a merge; the parent of the first commit for a rebased group). For a merge,
+`git show` prints a combined diff that is often empty, so use that form. To
+put a bug back, reverse only the non-test files of the change, never a whole
+revert, which would remove the fix's own tests too: `git diff <before> <after>
+-- <non-test paths> | git apply -R`. The root commit has no `<before>`; put
+its bug back by hand, as step 5 allows.
 
 If the range is empty, stop: nothing to do, nothing to commit.
 
@@ -79,9 +85,11 @@ each gap, and stops; it writes no tests and no state file.
 1. **Check for an earlier run's work.** Every run's pull request has a title
    starting `test-gaps:`. Search the forge's open change requests (pull
    requests on GitHub, merge requests on GitLab, and so on) for that prefix,
-   and leave out any fix they already cover, so two runs never add the same
-   case. Use whatever access to that forge you have; if none works, say so in
-   the report and carry on.
+   and leave out any fix they already cover. Search again just before opening
+   your own; if another run's request appeared in between, add your remaining
+   cases to it or close yours, so the same case is not proposed twice. Use
+   whatever access to that forge you have; if none works, say so in the report
+   and carry on.
 
 2. **Pick out the fixes.** Read each entry's subject and body, and its linked
    pull request or issue when the message is too thin ("Merge pull request #12
