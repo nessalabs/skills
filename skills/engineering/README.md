@@ -47,6 +47,11 @@ fits, and you can also invoke them by name.
   - References: [format](./trace/references/format.md). Script:
     [expand.py](./trace/scripts/expand.py), which prints a function's callees
     with file and line so the walk never reads a whole file.
+- **[test-gaps](./test-gaps/SKILL.md)**: go back over the fixes that landed
+  recently (the last 24 hours by default), work out what each bug needed that
+  no test looked at, and add that as tests in one pull request. Reach for it
+  for a retro on recent bugs, from a daily scheduled job, or when
+  `/test-gaps` is invoked.
 - **[wdym](./wdym/SKILL.md)**: say it in plain human language first. Reach for
   it when explaining a design, a change, a diagnosis, or a result, and
   whenever `/wdym` is invoked.
@@ -70,6 +75,7 @@ files disagree, the owner is right and the other is a bug. The owners:
 | Description format, evidence per claim, commit shaping, review standard, what blocks | `pull-requests` |
 | Finding instruments, verification, evidence classes, holding a fix in place, CI cadence | `method` |
 | Walking a runtime path, its markers, and the debugging-mode ending | `trace` |
+| Reviewing recent fixes for why tests missed them | `test-gaps` |
 
 **The general idea, not the case.** A rule is written as the transferable
 principle. The project it came from, its pull request numbers, its line
