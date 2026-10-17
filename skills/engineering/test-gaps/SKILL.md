@@ -41,17 +41,21 @@ guessing `main`. Fetch it first, and fetch enough history to reach the start
 never work from a local branch that may be stale. Turn a date into a commit,
 so the range has a fixed edge and does not depend on commit dates being in
 order: `git rev-list -1 --first-parent --before=<date> origin/<default>` (if
-it prints nothing, the whole branch is newer than the date; start from its
-root commit). Then check `git merge-base --is-ancestor <start>
+it prints nothing, the whole branch is newer than the date: list it all with
+`git log --first-parent --reverse <tip>`, since `<root>..<tip>` would leave
+the root out). Then check `git merge-base --is-ancestor <start>
 origin/<default>`; if it is not an ancestor, it was mistyped or history was
 rewritten. Ask the person if there is one; an unattended run says so and falls
 back to the 24-hour window.
 
 List the entries with `git log --first-parent --reverse <start>..<tip>`.
-First-parent keeps one entry per merged change, whether it was squashed or
-merged. For an entry that is a real merge commit, read its change with `git
-diff <sha>^1 <sha>` (`git show` prints a combined diff that is often empty)
-and undo it with `git revert -m 1`.
+First-parent keeps one entry per merged change when changes land squashed or
+as merge commits. A repository that rebases changes onto the branch has
+several commits per change; group them by their pull request (from the forge,
+or the commit messages) and treat each group as one entry. For an entry that
+is a real merge commit, read its change with `git diff <sha>^1 <sha>` (`git
+show` prints a combined diff that is often empty) and undo it with `git revert
+-m 1`.
 
 If the range is empty, stop: nothing to do, nothing to commit.
 
@@ -71,10 +75,11 @@ these") does steps 1 to 5, reports the table with the case it would add for
 each gap, and stops; it writes no tests and no state file.
 
 1. **Check for an earlier run's work.** Every run's pull request has a title
-   starting `test-gaps:`. Search open pull requests for that prefix, and leave
-   out any fix they already cover, so two runs never add the same case. Use
-   whatever GitHub access you have; if none works, say so in the report and
-   carry on.
+   starting `test-gaps:`. Search the forge's open change requests (pull
+   requests on GitHub, merge requests on GitLab, and so on) for that prefix,
+   and leave out any fix they already cover, so two runs never add the same
+   case. Use whatever access to that forge you have; if none works, say so in
+   the report and carry on.
 
 2. **Pick out the fixes.** Read each entry's subject and body, and its linked
    pull request or issue when the message is too thin ("Merge pull request #12
@@ -115,16 +120,16 @@ each gap, and stops; it writes no tests and no state file.
    finding the pull request exists to report.
 
 5. **Decide whether it is still a gap.** It is covered when a test that CI
-   actually runs would fail with the bug back, and that test checks what the
-   user would see rather than one inner part of it (the promise where it is
-   made, as [`method`](../method/SKILL.md#2-verifying) puts it). A test CI
-   never runs covers nothing. To put the bug back, in a scratch copy, either
-   undo the fix's non-test changes or, when the fix is large or tangled with
-   other work, make the smallest edit that brings back the old behaviour the
-   bug sentence describes. Run the test, see it fail, throw the copy away.
-   When you did not run it, say the verdict is inferred. A fix whose own test
-   only checks the exact input that broke is still a gap if the condition
-   behind it is tested nowhere else.
+   actually runs would fail with the bug back, and that test checks the
+   promise where it is made, as [`method`](../method/SKILL.md#2-verifying)
+   puts it, at a level the [testing rules](../coding/references/testing.md)
+   allow for that kind of defect. A test CI never runs covers nothing. To put
+   the bug back, in a scratch copy, either undo the fix's non-test changes or,
+   when the fix is large or tangled with other work, make the smallest edit
+   that brings back the old behaviour the bug sentence describes. Run the
+   test, see it fail, throw the copy away. When you did not run it, say the
+   verdict is inferred. A fix whose own test only checks the exact input that
+   broke is still a gap if the condition behind it is tested nowhere else.
 
 6. **Add the coverage.** For each gap, add a case where the section above
    says.
@@ -137,8 +142,10 @@ each gap, and stops; it writes no tests and no state file.
    - Write it as a regression test, as
      [testing](../coding/references/testing.md#regression-tests-carry-the-mechanism)
      and [`method`](../method/SKILL.md#turn-the-finding-into-an-artefact)
-     describe: named after the defect, carrying its mechanism and the fix
-     commit, plus whatever the repository's own instructions add.
+     describe: named after the defect, carrying its mechanism and the commit
+     that introduced it (find it with `git log -S` or blame on the lines the
+     fix changed; name the fix commit when you cannot), plus whatever the
+     repository's own instructions add.
    - A bug the tests cannot express (a pixel, a platform CI does not run) goes
      in the report with where it should be held instead.
 
