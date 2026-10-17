@@ -61,9 +61,11 @@ stopped being right.
 **Compare the decided scope, the shipped slices, and their evidence separately.**
 Accepted is not implemented, and implemented is not verified on every platform.
 For each promised slice, name the owner, current implementation and evidence,
-with the remaining gates. A schema can exist before its consumer renders,
-executes or authorizes it. Rejected alternatives and deferred improvements are
-not unfinished requirements unless the decision included them.
+with the remaining gates. Compare the promised guarantee, not just the feature
+name; if the shipped design changes it, distinguish an implementation gap from
+a decision that needs explicit revision. A schema can exist before its consumer
+renders, executes or authorizes it. Rejected alternatives and deferred
+improvements are not unfinished requirements unless the decision included them.
 
 **Repair the contradiction wherever readers encounter it.** Check the header,
 current-state prose, delivery tables, checklists, index, linked README and
