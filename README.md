@@ -66,7 +66,7 @@ you can also type them.
 | --- | --- |
 | **[coding](skills/engineering/coding/SKILL.md)** | You are about to write or modify code. The problem-solving loop, what to settle before writing, how to write, failure-first design, performance method, and how to report what you did. |
 | **[system-architect](skills/engineering/system-architect/SKILL.md)** | You are designing a module, adding a dependency between two parts of a system, arguing about boundaries or layering, or a change has started touching more files than it should. |
-| **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The Motivation/Solution frame, evidence per kind of claim, what blocks and what does not. |
+| **[pull-requests](skills/engineering/pull-requests/SKILL.md)** | You are opening, describing, splitting, or reviewing a pull request, or writing a commit message. The description template, evidence per kind of claim, what blocks and what does not. |
 | **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, weighing evidence, or deciding what to automate, test, or run in CI. |
 | **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime path of a feature, or where a delay, hang, or duplicate could come from. Walks the syntax tree one hop at a time; marks locks, waits, handoffs, and state; ends a debugging trace with suspects and probes. `/trace`. |
 | **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user says they don't follow. Lead with the plain human version. `/wdym`. |
