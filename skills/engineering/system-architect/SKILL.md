@@ -179,6 +179,7 @@ the slower, safe path.
 | A cache watches length, but the content is replaced without changing length | Every permitted mutation that changes the answer | [When the source changes](references/patterns.md#derived-state-and-accelerators) |
 | A pool lends capacity because an old readiness signal survives taking work | Availability at the owner's current admission transition | [Failure first](../coding/SKILL.md#3-failure-first) |
 | A record says complete after one of several promised consumers ships | The full decided scope and the evidence for each delivered slice | [Reconciling records](references/adr.md#reconciling-records-with-the-system) |
+| A feature is marked delivered by name, but its shipped contract differs from the decision | The decided guarantees and any explicit revision | [Reconciling records](references/adr.md#reconciling-records-with-the-system) |
 | A capability is disabled at runtime, but its foreign import still prevents an older supported target from linking | The final downstream link, including capability-off builds | [Rust compatibility checks](../coding/references/rust.md#testing-rust-specifics) |
 | A blocking pool fills with waits whose release needs that same pool | The execution capacity needed for progress | [Blocking work](../coding/references/rust.md#async) |
 | A host-size assertion passes but a foreign buffer has the wrong stride | The consuming representation | [Rust layout](../coding/references/rust.md#types-and-invariants) |
