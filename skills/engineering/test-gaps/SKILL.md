@@ -25,8 +25,8 @@ Pick the start of the range, first match wins:
 1. **What the person asked for**: a commit, a tag, or a date ("since Monday",
    "since abc123").
 2. **The last run on this machine**, if a state file exists at
-   `${XDG_STATE_HOME:-~/.local/state}/test-gaps/<host>/<owner>/<repo>`, where
-   `<host>` is the remote's host (`github.com`). Its only content is the
+   `${XDG_STATE_HOME:-$HOME/.local/state}/test-gaps/<host>/<owner>/<repo>`,
+   where `<host>` is the remote's host (`github.com`). Its only content is the
    commit hash the previous run reviewed up to. It lives outside the
    repository, so nothing is committed and every person keeps their own.
 3. **Otherwise, the last 24 hours** of the default branch. A schedule should
@@ -54,8 +54,10 @@ as merge commits. A repository that rebases changes onto the branch has
 several commits per change; group them by their pull request (from the forge,
 or the commit messages) and treat each group as one entry. For an entry that
 is a real merge commit, read its change with `git diff <sha>^1 <sha>` (`git
-show` prints a combined diff that is often empty) and undo it with `git revert
--m 1`.
+show` prints a combined diff that is often empty). To put a bug back, reverse
+only the non-test files of a change, never a whole revert, which would remove
+the fix's own tests too: `git diff <sha>^1 <sha> -- <non-test paths> | git
+apply -R`.
 
 If the range is empty, stop: nothing to do, nothing to commit.
 
@@ -133,8 +135,10 @@ each gap, and stops; it writes no tests and no state file.
 
 6. **Add the coverage.** For each gap, add a case where the section above
    says.
-   - Extend an existing case before adding a new one. Group gaps that share a
-     condition; one "reopen after a restart" case can hold three fixes.
+   - Extend an existing scenario or fixture before adding a new one. Gaps that
+     share a condition share its setup (one "reopen after a restart" fixture
+     can serve three fixes), but each fix still gets its own test, one
+     behaviour per test, so a failure names the promise that broke.
    - A new case must be seen failing with the bug put back (as in step 5) and
      passing without it. If you cannot put the bug back at all, leave the case
      out and record it as unproven. A case that passes either way is not
