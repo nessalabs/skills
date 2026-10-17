@@ -1,6 +1,6 @@
 ---
 name: pull-requests
-description: "Write a pull request description, and review one. Owns the Motivation/Solution frame, before-and-after sections with mermaid diagrams, what evidence each kind of change needs, commit message conventions, how to size and split a change, and the review standard - what to look for in what order, how to treat a claim, what blocks and what does not, how to mark optional feedback, how to disagree, and how to receive review. Use when opening, describing, splitting, or reviewing a pull request, when writing a commit message, or when asked to explain a change to other people."
+description: "Write a pull request description, and review one. Owns the description template (Background, The problem, The solution, How we checked it, Tradeoffs and follow-ups, Rollout) with before-and-after mermaid diagrams, what evidence each kind of change needs, commit message conventions, how to size and split a change, and the review standard - what to look for in what order, how to treat a claim, what blocks and what does not, how to mark optional feedback, how to disagree, and how to receive review. Use when opening, describing, splitting, or reviewing a pull request, when writing a commit message, or when asked to explain a change to other people."
 ---
 
 # Pull requests
@@ -19,24 +19,40 @@ and [`system-architect`](../system-architect/SKILL.md) point here.
 
 ### The frame
 
-Two headings, always, in this order. Everything else is optional.
+Write for a reader who has never seen this code and has five minutes. They
+should finish knowing what was wrong, what changed, how you know it works, and
+what it cost, without having to hold the whole system in their head. Plain
+words throughout, the way [wdym](../wdym/SKILL.md) says; a technical word only
+when nothing simpler says it.
 
-```markdown
-## Motivation
+Every description has these sections, in this order. The copyable template is
+[references/pull_request_template.md](references/pull_request_template.md);
+put it in a repository at `.github/pull_request_template.md`.
 
-What problem this solves, and for whom. Link the report, the prior attempts,
-and the workarounds that were rejected. If there is no problem (a refactor, a
-cleanup), say what makes it worth doing now.
+1. **Before / After**: one sentence each, as the person using the software
+   sees it. Then `Closes #N`, or `Part of #N` when the issue is not finished.
+2. **Background**: just enough of the system to follow the rest. Name the
+   parts involved and what each is for, with one small diagram of them if it
+   helps. Not the whole architecture.
+3. **The problem**: what goes wrong, told first as what the user sees ("you
+   press Send twice and the message appears twice"), then the flow near the
+   problem with the place it breaks marked.
+4. **The solution**: the same flow redrawn, then the steps, each naming the
+   commit that does it.
+5. **How we checked it**: short plain bullets on what was asked and what you
+   did to show it now works. See [Evidence](#evidence).
+6. **Tradeoffs and follow-ups**: what the change gives up and what it leaves
+   for later. See [Say what you deliberately did not do](#say-what-you-deliberately-did-not-do).
+7. **Rollout**: breaking changes, migrations, settings, and how to undo it.
+   "Nothing special" is a fine answer.
 
-## Solution
+A tool that adds its own block to the body, such as an attribution line, puts
+it above the template, not inside a section.
 
-What you did, as a numbered list of steps, each naming the commit that performs
-it. Then anything the reviewer needs in order to follow the code.
-```
-
-**Motivation is the part people skip and the part that matters.** A reviewer
-who does not understand the problem can only check that the code compiles and
-matches the description, which is the least valuable thing they could do.
+**The problem is the part people skip and the part that matters.** A reviewer
+who does not understand it can only check that the code compiles and matches
+the description, which is the least valuable thing they could do. If there is
+no problem (a refactor, a cleanup), say what makes it worth doing now.
 
 **Link the history.** Every prior issue, every workaround that was shipped and
 found wanting, every earlier attempt. It tells the reviewer whether the obvious
@@ -47,35 +63,24 @@ Five minutes of authoring for a qualitatively better review.
 
 ### Say what you deliberately did not do
 
-The most under-used section. State the restructuring you considered and
-rejected, and why: *I chose not to move this logic into the queue, because it
-depends on state the queue does not own; instead the queue exposes two
-operations and the caller stays a small diff.* Without it, the next person
-tidies the code into the exact shape you already rejected, and nobody
-remembers why it was wrong.
+The most under-used part of *Tradeoffs and follow-ups*. State the
+restructuring you considered and rejected, and why: *I chose not to move this
+logic into the queue, because it depends on state the queue does not own;
+instead the queue exposes two operations and the caller stays a small diff.*
+Without it, the next person tidies the code into the exact shape you already
+rejected, and nobody remembers why it was wrong. Name the cost you accepted
+too: more memory, a slower path, a harder future extension, a limit that will
+bite at some size.
 
 ### Before and after
 
 For anything that changes a shape (a structure, a state machine, a control
-flow, an ownership relationship), show it. Two sections, stacked, never side
-by side:
-
-```markdown
-### Before
-
-<prose: what the old shape was, and the specific way it was wrong>
-
-<diagram>
-
-### After
-
-<prose: what the new shape is>
-
-<diagram>
-```
+flow, an ownership relationship), show it: the diagram in *The problem* is the
+before, the one in *The solution* is the after, drawn over the same parts so
+the reader can see what moved. Stacked, never side by side.
 
 **Prose first, diagram second.** The diagram illustrates a claim; it does not
-make one. The *Before* prose is where you name the defect precisely: "null was
+make one. The problem prose is where you name the defect precisely: "null was
 doing double duty as *never looked up* and *looked up, nothing found*, and
 under retry those two need opposite behaviour." Diagram conventions and syntax:
 [references/diagrams.md](references/diagrams.md).
@@ -83,7 +88,9 @@ under retry those two need opposite behaviour." Diagram conventions and syntax:
 ### Evidence
 
 Match the evidence to the claim. The claim is what the description says; the
-evidence is what would make a stranger believe it.
+evidence is what would make a stranger believe it. It goes in *How we checked
+it* as plain bullets about what you did; name a test only where that test is
+itself the proof.
 
 - **A behaviour change**: the test that fails without it, by name.
 - **A bug fix**: the minimal reproduction and the regression test, and the
@@ -118,6 +125,8 @@ If you could not write a test, say so and say why. That is a normal thing to
 report and an abnormal thing to hide.
 
 ### Honesty markers
+
+These go in *How we checked it* and *Tradeoffs and follow-ups*.
 
 - **What you are unsure about.** Name the part you want a second opinion on.
 - **What this does not fix.** Adjacent problems the reviewer will spot.

@@ -27,11 +27,13 @@ fits, and you can also invoke them by name.
     [velocity](./system-architect/references/velocity.md),
     [decision records](./system-architect/references/adr.md).
 - **[pull-requests](./pull-requests/SKILL.md)**: how to describe a change and
-  how to review one. The Motivation/Solution frame, what evidence each kind of
-  claim needs, commit conventions, sizing and splitting, and the review
-  standard including what blocks and what does not. Reach for it when opening,
+  how to review one. The description template (background, problem,
+  solution, checks, tradeoffs, rollout), what evidence each kind of claim
+  needs, commit conventions, sizing and splitting, and the review standard
+  including what blocks and what does not. Reach for it when opening,
   splitting, or reviewing a pull request, or writing a commit message.
-  - References: [diagrams](./pull-requests/references/diagrams.md).
+  - References: [diagrams](./pull-requests/references/diagrams.md),
+    [the template](./pull-requests/references/pull_request_template.md).
 - **[method](./method/SKILL.md)**: how defects get found, how a hypothesis gets
   verified, what counts as evidence, and which artefact holds a fix in place.
   Reach for it when investigating a bug, chasing a performance problem, or
