@@ -40,16 +40,16 @@ no remote at all, use the local default branch and say so. The end of the
 range is the tip of `<remote>/<default>` when you start. Find the default
 branch's name with `git ls-remote --symref <remote> HEAD` rather than guessing
 `main`. Fetch it first, and fetch enough history to reach the start (`git
-fetch --shallow-since=<date>` or `--unshallow` in a shallow clone); never work
-from a local branch that may be stale. Turn a date into a commit, so the range
-has a fixed edge and does not depend on commit dates being in order: `git
-rev-list -1 --first-parent --before=<date> <remote>/<default>` (if it prints
-nothing, the whole branch is newer than the date: list it all with `git log
---first-parent --reverse <tip>`, since `<root>..<tip>` would leave the root
-out). Then check `git merge-base --is-ancestor <start> <remote>/<default>`; if
-it is not an ancestor, it was mistyped or history was rewritten. Ask the
-person if there is one; an unattended run says so and falls back to the
-24-hour window.
+fetch --shallow-since="<date>"` or `--unshallow` in a shallow clone); never
+work from a local branch that may be stale. Turn a date into a commit, so the
+range has a fixed edge and does not depend on commit dates being in order:
+`git rev-list -1 --first-parent --before="<date>" <remote>/<default>` (if it
+prints nothing, the whole branch is newer than the date: list it all with `git
+log --first-parent --reverse <tip>`, since `<root>..<tip>` would leave the
+root out). Then check `git merge-base --is-ancestor <start>
+<remote>/<default>`; if it is not an ancestor, it was mistyped or history was
+rewritten. Ask the person if there is one; an unattended run says so and falls
+back to the 24-hour window.
 
 List the entries with `git log --first-parent --reverse <start>..<tip>`.
 First-parent keeps one entry per merged change when changes land squashed or
@@ -62,8 +62,10 @@ or a merge; the parent of the first commit for a rebased group). For a merge,
 `git show` prints a combined diff that is often empty, so use that form. To
 put a bug back, reverse only the non-test files of the change, never a whole
 revert, which would remove the fix's own tests too: `git diff <before> <after>
--- <non-test paths> | git apply -R`. The root commit has no `<before>`; put
-its bug back by hand, as step 5 allows.
+-- <non-test paths> | git apply -R`. Where tests live inside source files (a
+Rust `#[cfg(test)]` module, for example), drop those hunks from the diff
+before applying it, or the fix's own tests go with it. The root commit has no
+`<before>`; put its bug back by hand, as step 5 allows.
 
 If the range is empty, stop: nothing to do, nothing to commit.
 
@@ -153,11 +155,7 @@ each gap, and stops; it writes no tests and no state file.
      coverage; drop it.
    - Write it as a regression test, as
      [testing](../coding/references/testing.md#regression-tests-carry-the-mechanism)
-     and [`method`](../method/SKILL.md#turn-the-finding-into-an-artefact)
-     describe: named after the defect, carrying its mechanism and the commit
-     that introduced it (find it with `git log -S` or blame on the lines the
-     fix changed; name the fix commit when you cannot), plus whatever the
-     repository's own instructions add.
+     describes, plus whatever the repository's own instructions add.
    - A bug the tests cannot express (a pixel, a platform CI does not run) goes
      in the report with where it should be held instead.
 
