@@ -363,12 +363,8 @@ extensions need it, introduce an explicit handle.** The reason encapsulation
 fails is exactly vertical isolation: the core cannot write the functions in
 advance because it does not know what product-specific code will do.
 
-**A large mechanical rewrite earns lighter review only where behavior is
-preserved.** Review the specification and representative generated output.
-Isolate semantic choices such as parser precedence or platform support, and
-[verify generated consumers](../../coding/references/testing.md#rules) against
-the contract. Existing tests establish only
-what they cover, not every possible divergence.
+For the evidence a large generated rewrite needs, follow
+[the pull-request evidence rules](../../pull-requests/SKILL.md#evidence).
 
 **Revert rather than patch a regression.** The instructive sequence, seen more
 than once: a structural fix replaces an escape hatch; ships with benchmarks;

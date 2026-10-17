@@ -392,10 +392,8 @@ change. Add one more level only where the code already picks between named
 cases (one module per kind of input a generator handles), with the shared
 helpers in the parent. Never add a level just to make a file shorter.
 
-**The folder name is the module name is the concept name.** Keep one
-implementation and one canonical internal path. A deliberate public re-export
-can preserve old imports during a move; check downstream compatibility rather
-than duplicating the implementation.
+For folder names, canonical imports and compatibility re-exports, follow
+[the naming rules](references/structure.md#naming).
 
 **Dependencies point in one direction, always.** Adapters depend on the
 application; the application depends on the domain; the arrow never reverses.

@@ -105,9 +105,12 @@ evidence is what would make a stranger believe it.
   whether the test could pass if the intended operation never happened.
 - **A user-visible change**: a screenshot or recording. Two, if there was a
   before.
-- **A large mechanical change**: what makes it safe. *"If there are unexpected
-  divergences, the existing tests catch them"* is a legitimate argument, and
-  the only one available at that size.
+- **A large mechanical change**: which behavior is preserved and how the
+  evidence covers it. For a generated rewrite, include review of the
+  specification and representative output, with
+  [consumer validation](../coding/references/testing.md#rules). Isolate semantic
+  choices such as parser precedence or platform support for explicit review;
+  existing tests establish only what they cover.
 - **A native or platform lifecycle fix** with no automated harness: what you
   actually ran, on which platform, at which revision, labelled as manual.
 
@@ -225,7 +228,7 @@ platform separately from who approved.
 2. Is the design right: do dependencies point inward, does the logic sit in the
    layer that owns it, is a boundary being crossed?
 3. Is it correct?
-4. Is it tested, and would the test have failed before?
+4. Does the evidence fit [the kind of change](../coding/references/testing.md#what-gets-a-test)?
 5. Is it readable by someone who was not in the conversation?
 6. Are the names the product's names?
 7. Is it tidy?
