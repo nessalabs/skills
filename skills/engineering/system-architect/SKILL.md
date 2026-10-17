@@ -127,6 +127,10 @@ the rule that covers it in detail:
 | A tracing callback panics after permits move, before the guard records that it must return them | The guard that now owns cleanup | [Every panic is a way out](../coding/references/rust.md#how-to-think-in-rust) |
 | A future reserves capacity during construction, but dropping it before its first poll leaks that capacity | The future holding the reservation from construction | [A future's constructor can act sooner](../coding/references/rust.md#async) |
 | A blocked output stream stops unrelated input from being read | Each stream's own progress contract | [Independent progress](references/patterns.md#concurrency-and-failure) |
+| A one-shot callback runs again before queued removal | The callback's execution claim | [Idempotent, or keyed](../coding/SKILL.md#3-failure-first) |
+| A stored record is copied and its mutation vanishes | The original value, borrowed or explicitly replaced | [Rust temporary copies](../coding/references/rust.md#types-and-invariants) |
+| A helper uses a different API level from its parent | Each process at startup, using the scoped selection | [Helper capability declarations](references/patterns.md#feature-and-capability-gating) |
+| A directory exists while another process is still building it | The publisher that controls completion | [Artifact publication](references/patterns.md#derived-state-and-accelerators) |
 
 §9's "every invariant has a named enforcer" is this rule applied to
 invariants.
@@ -176,6 +180,10 @@ the slower, safe path.
 | A pool lends capacity because an old readiness signal survives taking work | Availability at the owner's current admission transition | [Failure first](../coding/SKILL.md#3-failure-first) |
 | A record says complete after one of several promised consumers ships | The full decided scope and the evidence for each delivered slice | [Reconciling records](references/adr.md#reconciling-records-with-the-system) |
 | A capability is disabled at runtime, but its foreign import still prevents an older supported target from linking | The final downstream link, including capability-off builds | [Rust compatibility checks](../coding/references/rust.md#testing-rust-specifics) |
+| A blocking pool fills with waits whose release needs that same pool | The execution capacity needed for progress | [Blocking work](../coding/references/rust.md#async) |
+| A host-size assertion passes but a foreign buffer has the wrong stride | The consuming representation | [Rust layout](../coding/references/rust.md#types-and-invariants) |
+| A cost estimate arrives after the planner already chose | Evidence available at the deciding phase | [Only reorder with a reason](references/patterns.md#derived-state-and-accelerators) |
+| A protocol round trip works but the host displays a blank document | The actual consumer, including navigation and origin | [Consumer validation](../coding/references/testing.md#rules) |
 
 ### Adding to the core rules
 
@@ -254,8 +262,9 @@ you fix.
 
 **Shared kernel is a debt instrument.** Anything shared by two contexts is
 jointly owned and therefore hard to change. Keep the shared set to primitive
-value types and deliberately versioned contracts. Never share an entity. Never
-share "the model".
+value types and deliberately versioned contracts. Keep mutable entity authority
+local. A separately owned remote mirror or snapshot may preserve foreign IDs
+under a versioned contract with explicit generation and reconnect semantics.
 
 ---
 
@@ -383,8 +392,8 @@ change. Add one more level only where the code already picks between named
 cases (one module per kind of input a generator handles), with the shared
 helpers in the parent. Never add a level just to make a file shorter.
 
-**The folder name is the module name is the concept name.** No aliases, no
-re-exports creating a second path. One name, one location, one import path.
+For folder names, canonical imports and compatibility re-exports, follow
+[the naming rules](references/structure.md#naming).
 
 **Dependencies point in one direction, always.** Adapters depend on the
 application; the application depends on the domain; the arrow never reverses.
@@ -489,7 +498,9 @@ enforces isolation, delete the security machinery it made redundant.
 background task or another process owns a resource, "cancel", "close", and
 "reset" have to reach that new owner some explicit way. Dropping your own
 handle only says you no longer care; the new owner keeps going unless someone
-tells it.
+tells it. Follow cancellation through to the promised external effect or
+resource release; a local task exit alone does not prove peer reset or returned
+capacity.
 
 **Migrations are a semantic dependency graph.** A later migration depends on
 durable facts, not on an intermediate shape an earlier migration happened to

@@ -44,7 +44,9 @@ way, that is the review comment, before correctness, before style.
 - Folder name == module name == the domain concept, in the product's words.
 - No `utils`, `helpers`, `common`, `shared`, `core`, `types`, `misc`. If you
   cannot name a module after what it *is*, you have not found the concept.
-- One canonical import path per item. No re-exports creating a second route.
+- Keep one implementation and one canonical internal import path per item.
+  A deliberate public re-export can preserve old imports during a move; check
+  downstream compatibility rather than duplicating the implementation.
 - Flat by default (see [§7](../SKILL.md#7-structure)).
 
 ## The absences
