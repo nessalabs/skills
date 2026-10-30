@@ -23,8 +23,8 @@ On each machine, check first:
 tailscale status
 ```
 
-If it is missing, install it: on a Mac the Tailscale app (`brew install
---cask tailscale`, then open it once); on Linux `curl -fsSL
+If it is missing, install it: on a Mac the Tailscale app from
+tailscale.com/download (open it once); on Linux `curl -fsSL
 https://tailscale.com/install.sh | sh`; on Windows the installer from
 tailscale.com. Then sign in to the **same** account or tailnet on both:
 `sudo tailscale up` on Linux, the app's menu elsewhere. Signing in opens a
@@ -46,7 +46,7 @@ In Nessa on the hub, open **Devices › Add a computer**. If it says no other
 computer can reach the hub, press **Let other computers reach it**: Nessa
 starts again listening on every interface, port 47650 unless the page shows
 another. If it names a loopback address someone chose by hand, change
-`native.listen` in the hub's `config.json` to `0.0.0.0:<port>` and turn
+`native.listenAddress` in the hub's `config.json` to `0.0.0.0:<port>` and turn
 linking off and on in Settings › Linked devices.
 
 From the other computer, check it can reach that port before going on:
@@ -62,8 +62,8 @@ Firewall), or the tailnet's access rules do not allow that port.
 
 ## 3. Enroll, approve, grant
 
-The other computer needs the same Nessa build as the hub (`nessa --version`
-on both) and its own `config.json` with an `agents` section naming the
+The other computer needs a Nessa build that speaks the hub's lease protocol
+(`nessa env protocol` prints the same on both) and its own `config.json` with an `agents` section naming the
 agents it may run, readable only by its own account (`chmod 600`).
 
 Run the two commands the Add a computer page shows, on the other computer,
@@ -83,7 +83,7 @@ Then say what the hub may run there. Nothing runs until it is granted:
 
 ```sh
 nessa env grant --agent claude        # each agent the person wants, by name
-nessa env grant --commands            # only if they want commands run there
+nessa env grant --commands --max-timeout 10m   # only if they want commands run there
 nessa env grants                      # check
 ```
 
@@ -95,8 +95,10 @@ disks.
 `nessa env dial` serves only while it runs, and calls again by itself when
 its connection drops. To survive a logout or restart, run it as a service the
 computer already uses (a systemd user unit, a launchd agent, or a container
-with a restart policy), with the same command. Stopping it with Ctrl-C or
-SIGTERM lets the hub finish what it gave the computer first.
+with a restart policy), with `--drain-deadline 20s` added. With it, Ctrl-C or
+SIGTERM lets the work the hub gave the computer end cleanly first; without
+it, a stop drops that work at once. Keep the deadline below a container's
+stop grace.
 
 ## When it does not connect
 
@@ -105,7 +107,8 @@ Read the symptom against the two facts at the top before anything else.
 | What you see | What it means |
 | --- | --- |
 | `enroll` cannot connect | Step 1 or 2: not on the tailnet, or the hub not listening there |
-| `enroll` says the code is not valid | It expired or was used: make a new one on the page |
+| `enroll` says it is not a pairing code, or the gateway refused | Mistyped, used or expired: make a new code on the page |
+| `enroll` says this machine is already paired, or has a pairing waiting | Run `dial` instead; to start over, remove the pairing directory it names |
 | `dial` waits and the page never shows a key | The page was left or made a new code before approving: start again from `enroll` with a new code |
 | Approved, but Devices says Offline | `dial` is not running on the computer |
 | Online, but its threads say the environment is unavailable | Nothing granted: step 3's `grant` |
