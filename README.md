@@ -84,10 +84,12 @@ handle the case the rules did not anticipate. The owner table and the rules
 for adding a lesson are in the
 [engineering index](skills/engineering/README.md#how-the-set-is-organised).
 
-Skills are grouped into buckets under `skills/`. There is one today —
-[`engineering`](skills/engineering/README.md) — and its
-[README](skills/engineering/README.md) is the index. New buckets get their own
-folder and their own index.
+Skills are grouped into buckets under `skills/`, each with its own index:
+[`engineering`](skills/engineering/README.md), the seven above, and
+[`nessa`](skills/nessa/README.md), for setting up Nessa itself:
+**[connect-a-computer](skills/nessa/connect-a-computer/SKILL.md)** gets another
+computer running agents for a Nessa hub over Tailscale. New buckets get their
+own folder and their own index.
 
 ## The idea
 

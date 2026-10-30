@@ -1,0 +1,3 @@
+interface:
+  display_name: "Connect a computer"
+  short_description: "Add a computer to a Nessa hub over Tailscale"
