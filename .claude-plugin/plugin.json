@@ -1,6 +1,6 @@
 {
   "name": "nessalabs-skills",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Engineering skills distilled from the source, history, and review discussions of long-lived high-performance open source projects: how to design a system, how to write a change, and how to find and prove things.",
   "author": {
     "name": "Nessa Labs",
@@ -17,7 +17,9 @@
     "testing",
     "debugging",
     "rust",
-    "typescript"
+    "typescript",
+    "nessa",
+    "tailscale"
   ],
   "skills": [
     "./skills/engineering/coding",
@@ -26,6 +28,7 @@
     "./skills/engineering/method",
     "./skills/engineering/trace",
     "./skills/engineering/test-gaps",
-    "./skills/engineering/wdym"
+    "./skills/engineering/wdym",
+    "./skills/nessa/connect-a-computer"
   ]
 }
