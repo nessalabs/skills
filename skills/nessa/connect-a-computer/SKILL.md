@@ -24,8 +24,12 @@ tailscale status
 ```
 
 If it is missing, install it: on a Mac the Tailscale app from
-tailscale.com/download (open it once); on Linux `curl -fsSL
-https://tailscale.com/install.sh | sh`; on Windows the installer from
+tailscale.com/download (open it once). The Mac app does not put `tailscale`
+on the shell's path by itself: "command not found" there may mean only that.
+Install its command-line integration (Tailscale's CLI page shows how for
+each kind of Mac app), or call
+`/Applications/Tailscale.app/Contents/MacOS/Tailscale` in its place. On
+Linux `curl -fsSL https://tailscale.com/install.sh | sh`; on Windows the installer from
 tailscale.com. Then sign in to the **same** account or tailnet on both:
 `sudo tailscale up` on Linux, the app's menu elsewhere. Signing in opens a
 browser page the person completes; wait for them.
