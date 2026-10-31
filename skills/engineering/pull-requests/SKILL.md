@@ -79,9 +79,7 @@ tell what went wrong without opening the code? Do the two diagrams have the
 same participants, and does each arrow read as a sentence? If not, rewrite it
 before anyone else has to.
 
-The template's comments summarize this file, and some agent tools are told to
-fill in a template's headings and ignore what its comments say. So read this
-file before writing a description; do not rely on the template alone.
+The template's comments are a summary; read this file first.
 
 ### Say what you deliberately did not do
 

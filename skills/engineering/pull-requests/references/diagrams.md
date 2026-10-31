@@ -27,6 +27,12 @@ Draw one when the change alters:
   queued, a step moved to the other side of a boundary.
 - **A lock or async ordering** — what happens concurrently, and in what order.
 
+Pick the kind by what changed. A sequence diagram fits when the order of
+messages between two or more parts changed. A layout or nesting change is a
+flowchart of what holds what, a lifecycle a state diagram, ownership a class
+diagram. A sequence diagram of a layout change is one part talking to itself,
+and it says nothing.
+
 Do **not** draw one for: a value change, a rename, a bug fix that does not move
 a boundary, or "here is the whole architecture" on a change that touches one
 corner of it.
@@ -63,12 +69,6 @@ mermaid diagram that fails to parse is worse than none.
 **Collapse the large ones.** Wrap a big diagram in `<details><summary>` so the
 description stays readable, with a blank line after the `<summary>` line.
 
-**Pick the kind by what changed.** Use a sequence diagram only when the order
-of messages between two or more parts is what changed. A layout or nesting
-change is a flowchart of what holds what. A lifecycle change is a state
-diagram. A sequence diagram of a layout change is a part talking to itself,
-and it says nothing.
-
 ---
 
 ## What a sequence diagram says
@@ -90,16 +90,16 @@ sentences first, then draw the arrows those sentences already say.
 - **Each arrow is one message, in words**: "asks for the new build", not
   `UpdateWanted{os, arch}`. Keep a code name only where it is the contract the
   reviewer must check, and say it once.
-- **No arrow from a participant to itself.** Work inside one part is either not
-  drawn or a short note.
+- **Avoid an arrow from a participant to itself.** Work inside one part is
+  not drawn, or is a short note.
 - **A note is one short line.** No `<br/>` lists, constants, limits, or file
   paths. If it needs a list, the list belongs in the prose under the diagram.
-- **Draw the problem and the solution over the same participants.** The
-  problem diagram stops where things go wrong, with a note saying what the
-  person sees there. The solution diagram is the same story with the new
-  path. Use `alt` / `else` only when the change is about the other branch.
-- **About ten arrows.** More means two diagrams, or a step back to a higher
-  level.
+- **The problem diagram stops where things go wrong**, with a note saying
+  what the person sees there. The solution diagram tells the same story with
+  the new path, following [same nodes, same layout](#rules). Use `alt` /
+  `else` only when the change is about the other branch.
+- **About ten arrows** (the node limit above counts participants). More
+  means two diagrams, or a step back to a higher level.
 
 A diagram drawn from the code:
 
@@ -117,7 +117,7 @@ sequenceDiagram
 ```
 
 The same change drawn from the prose ("when two tabs edit one draft, the
-second save was thrown away without telling anyone; now it asks which to
+second save was refused and the person was never told; now it asks which to
 keep"), first the problem, then the solution:
 
 ```mermaid
@@ -248,7 +248,9 @@ sequenceDiagram
 ```
 ````
 
-Use `Note over` to mark the invariant, and `activate`/`deactivate` when a lock
+What belongs in one is in
+[what a sequence diagram says](#what-a-sequence-diagram-says). Use a
+one-line `Note over` to mark the invariant, and `activate`/`deactivate` when a lock
 or a hold is what the change is about.
 
 ## Flowchart
