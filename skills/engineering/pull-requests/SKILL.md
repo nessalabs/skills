@@ -61,6 +61,26 @@ cheaper fix has already been tried.
 **Map the steps to commits.** A reviewer can then take one idea at a time.
 Five minutes of authoring for a qualitatively better review.
 
+### Write it from the reader's side, not from your notes
+
+You write the description at the end, when your head is full of function names,
+limits, and review rounds. The reader has none of that. So write it from the
+issue and the diff, not from memory of the work:
+
+- *The problem* is told first as what a person sees. Function names come
+  later, and only the ones a reviewer has to check.
+- *The solution* says what changes, in words. A list of files and what each
+  one now does is a commit message, not a description.
+- The review history is one line; the commits carry the rest.
+- The diagrams follow [what a sequence diagram says](references/diagrams.md#what-a-sequence-diagram-says).
+
+Before you post, read it as the stranger from [the frame](#the-frame). Can you
+tell what went wrong without opening the code? Do the two diagrams have the
+same participants, and does each arrow read as a sentence? If not, rewrite it
+before anyone else has to.
+
+The template's comments are a summary; read this file first.
+
 ### Say what you deliberately did not do
 
 The most under-used part of *Tradeoffs and follow-ups*. State the

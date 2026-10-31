@@ -27,6 +27,12 @@ Draw one when the change alters:
   queued, a step moved to the other side of a boundary.
 - **A lock or async ordering** — what happens concurrently, and in what order.
 
+Pick the kind by what changed. A sequence diagram fits when the order of
+messages between two or more parts changed. A layout or nesting change is a
+flowchart of what holds what, a lifecycle a state diagram, ownership a class
+diagram. A sequence diagram of a layout change is one part talking to itself,
+and it says nothing.
+
 Do **not** draw one for: a value change, a rename, a bug fix that does not move
 a boundary, or "here is the whole architecture" on a change that touches one
 corner of it.
@@ -58,10 +64,90 @@ grouping to carry meaning. If you must emphasise, do it in one place only.
 
 **Preview before you post.** Push the description into a draft or a comment on
 your own fork and look at it. A syntax error renders as a raw code block, and a
-mermaid diagram that fails to parse is worse than none.
+mermaid diagram that fails to parse is worse than none. If you have no way to see it
+rendered, leave it out and say so: a diagram nobody has seen render is a
+guess.
 
 **Collapse the large ones.** Wrap a big diagram in `<details><summary>` so the
 description stays readable, with a blank line after the `<summary>` line.
+
+---
+
+## What a sequence diagram says
+
+A sequence diagram tells a short story: who asks whom for what, in what order.
+Read its arrows aloud and they should sound like sentences a colleague would
+say. It is not a trace of the code. The easy mistake is to draw it from the
+code you just wrote, because that is what is in your head: every function
+becomes a participant, every call an arrow, and every detail you checked a
+note. The result is true and nobody can read it.
+
+So draw it from the prose instead. Write the problem and the solution in plain
+sentences first, then draw the arrows those sentences already say.
+
+- **Participants are the parts a reader knows**: the person, the app, the
+  server, a worker, the store, each one named in *Background* or obvious
+  without it. Not functions, types, or files. If two participants run in one
+  process and the reader does not need that split, make them one.
+- **Each arrow is one message, in words**: "asks for the new build", not
+  `UpdateWanted{os, arch}`. Keep a code name only where it is the contract the
+  reviewer must check, and say it once.
+- **Avoid an arrow from a participant to itself.** Work inside one part is
+  not drawn, or is a short note.
+- **A note is one short line.** No `<br/>` lists, constants, limits, or file
+  paths. If it needs a list, the list belongs in the prose under the diagram.
+- **The problem diagram stops where things go wrong**, with a note saying
+  what the person sees there. The solution diagram tells the same story with
+  the new path, following [same nodes, same layout](#rules). Use `alt` /
+  `else` only when the change is about the other branch.
+- **About ten arrows** (the node limit above counts participants). More
+  means two diagrams, or a step back to a higher level.
+
+A diagram drawn from the code:
+
+```mermaid
+sequenceDiagram
+    participant E as Editor (useDraft)
+    participant Q as SaveQueue.push
+    participant S as Server (drafts::put)
+    E->>Q: push(Draft{id, body, rev})
+    Q->>Q: dedupe by id, debounce 500 ms
+    Q->>S: PUT /drafts/:id {body, rev}
+    Note over S: rev check: rev == stored.rev + 1<br/>else 409 draft_conflict<br/>stored.rev++ in same txn
+    S-->>Q: 409 draft_conflict
+    Q->>Q: retry with backoff (3x)
+```
+
+The same change drawn from the prose ("when two tabs edit one draft, the
+second save was refused and the person was never told; now it asks which to
+keep"), first the problem, then the solution:
+
+```mermaid
+sequenceDiagram
+    participant P as Person
+    participant A as Second tab
+    participant S as Server
+    P->>A: edits the draft
+    A->>S: saves an older copy
+    S-->>A: refuses it, a newer copy exists
+    Note over P,A: the edit is lost and nothing says so
+```
+
+```mermaid
+sequenceDiagram
+    participant P as Person
+    participant A as Second tab
+    participant S as Server
+    P->>A: edits the draft
+    A->>S: saves an older copy
+    S-->>A: refuses it, a newer copy exists
+    A->>P: asks which copy to keep
+    P->>A: picks one
+    A->>S: saves it on top of the newer copy
+```
+
+The pair works because the participants are the same three, every arrow is a
+sentence, and the one difference between them is the fix.
 
 ---
 
@@ -164,7 +250,9 @@ sequenceDiagram
 ```
 ````
 
-Use `Note over` to mark the invariant, and `activate`/`deactivate` when a lock
+What belongs in one is in
+[what a sequence diagram says](#what-a-sequence-diagram-says). Use a
+one-line `Note over` to mark the invariant, and `activate`/`deactivate` when a lock
 or a hold is what the change is about.
 
 ## Flowchart
