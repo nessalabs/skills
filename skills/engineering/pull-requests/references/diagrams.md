@@ -64,7 +64,9 @@ grouping to carry meaning. If you must emphasise, do it in one place only.
 
 **Preview before you post.** Push the description into a draft or a comment on
 your own fork and look at it. A syntax error renders as a raw code block, and a
-mermaid diagram that fails to parse is worse than none.
+mermaid diagram that fails to parse is worse than none. If you have no way to see it
+rendered, leave it out and say so: a diagram nobody has seen render is a
+guess.
 
 **Collapse the large ones.** Wrap a big diagram in `<details><summary>` so the
 description stays readable, with a blank line after the `<summary>` line.
