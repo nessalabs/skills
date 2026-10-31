@@ -63,6 +63,90 @@ mermaid diagram that fails to parse is worse than none.
 **Collapse the large ones.** Wrap a big diagram in `<details><summary>` so the
 description stays readable, with a blank line after the `<summary>` line.
 
+**Pick the kind by what changed.** Use a sequence diagram only when the order
+of messages between two or more parts is what changed. A layout or nesting
+change is a flowchart of what holds what. A lifecycle change is a state
+diagram. A sequence diagram of a layout change is a part talking to itself,
+and it says nothing.
+
+---
+
+## What a sequence diagram says
+
+A sequence diagram tells a short story: who asks whom for what, in what order.
+Read its arrows aloud and they should sound like sentences a colleague would
+say. It is not a trace of the code. The easy mistake is to draw it from the
+code you just wrote, because that is what is in your head: every function
+becomes a participant, every call an arrow, and every detail you checked a
+note. The result is true and nobody can read it.
+
+So draw it from the prose instead. Write the problem and the solution in plain
+sentences first, then draw the arrows those sentences already say.
+
+- **Participants are the parts a reader knows**: the person, the app, the
+  server, a worker, the store, each one named in *Background* or obvious
+  without it. Not functions, types, or files. If two participants run in one
+  process and the reader does not need that split, make them one.
+- **Each arrow is one message, in words**: "asks for the new build", not
+  `UpdateWanted{os, arch}`. Keep a code name only where it is the contract the
+  reviewer must check, and say it once.
+- **No arrow from a participant to itself.** Work inside one part is either not
+  drawn or a short note.
+- **A note is one short line.** No `<br/>` lists, constants, limits, or file
+  paths. If it needs a list, the list belongs in the prose under the diagram.
+- **Draw the problem and the solution over the same participants.** The
+  problem diagram stops where things go wrong, with a note saying what the
+  person sees there. The solution diagram is the same story with the new
+  path. Use `alt` / `else` only when the change is about the other branch.
+- **About ten arrows.** More means two diagrams, or a step back to a higher
+  level.
+
+A diagram drawn from the code:
+
+```mermaid
+sequenceDiagram
+    participant E as Editor (useDraft)
+    participant Q as SaveQueue.push
+    participant S as Server (drafts::put)
+    E->>Q: push(Draft{id, body, rev})
+    Q->>Q: dedupe by id, debounce 500 ms
+    Q->>S: PUT /drafts/:id {body, rev}
+    Note over S: rev check: rev == stored.rev + 1<br/>else 409 draft_conflict<br/>stored.rev++ in same txn
+    S-->>Q: 409 draft_conflict
+    Q->>Q: retry with backoff (3x)
+```
+
+The same change drawn from the prose ("when two tabs edit one draft, the
+second save was thrown away without telling anyone; now it asks which to
+keep"), first the problem, then the solution:
+
+```mermaid
+sequenceDiagram
+    participant P as Person
+    participant A as Second tab
+    participant S as Server
+    P->>A: edits the draft
+    A->>S: saves an older copy
+    S-->>A: refuses it, a newer copy exists
+    Note over P,A: the edit is lost and nothing says so
+```
+
+```mermaid
+sequenceDiagram
+    participant P as Person
+    participant A as Second tab
+    participant S as Server
+    P->>A: edits the draft
+    A->>S: saves an older copy
+    S-->>A: refuses it, a newer copy exists
+    A->>P: asks which copy to keep
+    P->>A: picks one
+    A->>S: saves it on top of the newer copy
+```
+
+The pair works because the participants are the same three, every arrow is a
+sentence, and the one difference between them is the fix.
+
 ---
 
 ## Class diagram
