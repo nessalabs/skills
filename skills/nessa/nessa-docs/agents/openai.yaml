@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nessa Docs"
+  short_description: "Map project flows, and check the risky ones"
+  default_prompt: "Use $nessa-docs to document this project's system and important flows in docs/state. Check any risky flow with a small model before stamping the page, then help me open the pages locally."

@@ -86,10 +86,12 @@ for adding a lesson are in the
 
 Skills are grouped into buckets under `skills/`, each with its own index:
 [`engineering`](skills/engineering/README.md), the seven above, and
-[`nessa`](skills/nessa/README.md), for setting up Nessa itself:
+[`nessa`](skills/nessa/README.md), for Nessa itself.
 **[connect-a-computer](skills/nessa/connect-a-computer/SKILL.md)** gets another
-computer running agents for a Nessa hub over Tailscale. New buckets get their
-own folder and their own index.
+computer running agents for a Nessa hub over Tailscale.
+**[nessa-docs](skills/nessa/nessa-docs/SKILL.md)** writes a project's system
+map and statecharts, and checks a risky flow with a small model before the
+page is stamped. New buckets get their own folder and their own index.
 
 ## The idea
 
