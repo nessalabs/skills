@@ -1,14 +1,14 @@
 ---
 name: nessa-docs
-description: "Build or maintain a browsable system map and high-level statecharts in a project's docs/state Markdown, grounded in its current source. For a risky flow, add a small TLA+ model under docs/state/tla and check it with check_model before the page is stamped. Use when documenting services, user flows, lifecycle decisions, preparing a project for the Nessa Docs browser, or checking rules on a statechart page."
+description: "Build or maintain a browsable system map and high-level statecharts in a project's docs/state Markdown, grounded in its current source. Consider a small TLA+ model for consequential stateful flows; every selected model requires adversarial review and negative controls. Use when documenting services, user flows, lifecycle decisions, preparing a project for the Nessa Docs browser, or checking rules on a statechart page."
 ---
 
 # Nessa Docs
 
 Help a newcomer understand what a project does, which part owns each step,
 and why an action succeeds or fails. Write the documentation in the user's
-repository. Nessa Docs renders it; it does not run the modeled system. For a
-risky flow, add a small rule model and check it before the page is stamped.
+repository. Nessa Docs renders it; it does not run the modeled system. Consider
+a small rule model when it helps test an important stateful boundary.
 
 Read [the file format](references/format.md) before authoring files. That
 reference owns the metadata and diagram-binding contract. The skill is usable
@@ -47,9 +47,9 @@ a root revision onto children, substitute the renderer's commit, or imply a
 checkpoint is executed test evidence. Leave unknown historical checkpoints
 absent until verified. Record review scope, validation and exclusions in prose.
 
-On a page that links a model, run [the rule check](#check-a-risky-flow) before
-you stamp that page. The checkpoint names the source you reviewed. It does not
-say the rules held.
+On a page that links a model, record the reviewed checkpoint before the final
+[rule check](#check-a-risky-flow), then verify the receipt matches it. The checkpoint
+names the source you reviewed. It does not say the rules held.
 
 ## Organize the map
 
@@ -148,8 +148,8 @@ alone does not satisfy this requirement or prove the implementation correct.
 
 A chart says what is allowed. A model is that story written so a checker can
 try the steps and see whether the rules still hold. Not every page needs a
-model. Write one for a risky flow: pairing, leases, saving a secret, cleanup,
-and resume. The [file format](references/format.md#optional-rule-model) owns
+model. Consider one for consequential flows such as pairing, leases, saving a
+secret, cleanup and resume. Once selected, all model-review gates above apply. The [file format](references/format.md#optional-rule-model) owns
 the fields. This section is how you write and check the model.
 
 The model checks the design, not the code. A rule that holds here is not
@@ -203,10 +203,18 @@ the model together, or keep the break.
 
 Say what the model leaves out, on the page, in a sentence or two.
 
-### Check before you stamp
+### Record the checkpoint, then check
 
-Before you stamp the page, call `check_model`. It is the same check as the
-app's **Check rules** button.
+After reviewing the source, record `sourceRevision` as the checkpoint section
+requires. Do this before the final baseline and negative-control runs: the checker
+copies that checkpoint into its receipt. Changing it afterward makes that receipt
+stale and requires another check.
+
+When the host provides `check_model`, call it. It is the same check as the app's
+**Check rules** button. Without that tool or UI, use the repository's verification
+runner when it integrates the canonical Nessa Docs checker and receipt writer.
+Do not invent an unavailable command or hand-write a receipt. If no supported
+execution route is available, report model verification as incomplete.
 
 If the checker is missing, install it and call again: `check_model` with
 `action` set to `install`, then a check. Settings → Health has the same
@@ -227,8 +235,7 @@ as this check.
 
 Read back the rules held, the rules broken with their numbered path and the
 chart states they marked, the rules not checked, and the state count. Report
-all four, including the empty ones. Then record `sourceRevision` as the
-checkpoint section says. If a rule broke, or any rule was not checked, say
+all four, including the empty ones. If a rule broke, or any rule was not checked, say
 that in the checker's words. The checkpoint does not turn either into a pass.
 
 ### A failing path
