@@ -95,6 +95,10 @@ against the newer source.
 
 ## Optional rule model
 
+When models are authored, refreshed or reported as verified, follow the required
+[adversarial review and negative-control procedure](model-review.md). Catalog
+validation and a saved checker receipt alone do not satisfy that procedure.
+
 A page may link a TLA+ model of its chart. The model is optional. A page
 without one is unchanged, and validation does not require a checker.
 

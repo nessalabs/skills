@@ -1,14 +1,14 @@
 ---
 name: nessa-docs
-description: "Build or maintain a browsable system map and high-level statecharts in a project's docs/state Markdown, grounded in its current source. For a risky flow, add a small TLA+ model under docs/state/tla and check it with check_model before the page is stamped. Use when documenting services, user flows, lifecycle decisions, preparing a project for the Nessa Docs browser, or checking rules on a statechart page."
+description: "Build or maintain a browsable system map and high-level statecharts in a project's docs/state Markdown, grounded in its current source. Consider a small TLA+ model for consequential stateful flows; every selected model requires adversarial review and negative controls. Use when documenting services, user flows, lifecycle decisions, preparing a project for the Nessa Docs browser, or checking rules on a statechart page."
 ---
 
 # Nessa Docs
 
 Help a newcomer understand what a project does, which part owns each step,
 and why an action succeeds or fails. Write the documentation in the user's
-repository. Nessa Docs renders it; it does not run the modeled system. For a
-risky flow, add a small rule model and check it before the page is stamped.
+repository. Nessa Docs renders it; it does not run the modeled system. Consider
+a small rule model when it helps test an important stateful boundary.
 
 Read [the file format](references/format.md) before authoring files. That
 reference owns the metadata and diagram-binding contract. The skill is usable
@@ -47,9 +47,9 @@ a root revision onto children, substitute the renderer's commit, or imply a
 checkpoint is executed test evidence. Leave unknown historical checkpoints
 absent until verified. Record review scope, validation and exclusions in prose.
 
-On a page that links a model, run [the rule check](#check-a-risky-flow) before
-you stamp that page. The checkpoint names the source you reviewed. It does not
-say the rules held.
+On a page that links a model, record the reviewed checkpoint before the final
+[rule check](#check-a-risky-flow), then verify the receipt matches it. The checkpoint
+names the source you reviewed. It does not say the rules held.
 
 ## Organize the map
 
@@ -97,28 +97,59 @@ application state. Avoid a box for every function or field. Use
 
 ## Write for the first reader
 
-Open each page and clickable explanation with plain English. Say what happens,
-what allows or prevents the next step, and what the reader can expect afterward.
-A state or arrow may be the first thing the person reads. Explain its condition
-without requiring the rest of the page. Add a small example or sequence when it
-helps. Keep important failure and uncertainty visible in the short explanation.
+Write in simple technical English: familiar verbs, explicit actors and one
+consistent name for each thing. Explain a necessary technical term at first use;
+do not replace a precise condition with a vague promise. Lead with the person's
+task, the result they can observe, and which part owns it. Put implementation
+mechanics and model details after that explanation.
 
-Use short sentences and ordinary verbs. No em dashes, slogans, filler or invented
-jargon. Keep function names, exact error types and test-name lists out of the
-opening explanation. Add a few useful source links for readers who want the
-implementation; the complete source list belongs in frontmatter. Do not replace
-a wall of prose with a wall of boxes.
+For a lifecycle or operation, follow one concrete example from entry to outcome.
+Explain what can fail, what may already have changed when an error returns, who
+still owns unfinished work, and what the caller can safely do next. If recovery
+is not implemented or has not been reviewed, say so; do not invent a retry recipe.
+Trace the actual entry point and composition before presenting a helper or a
+standalone API as a feature available in the app.
 
-Use `diagramLinks` for drill-down into another page and `diagramDetails` for an
-explanation in the owning Markdown. The browser marks available depth with a +.
-Full detail shows authored content; it does not launch agents or write files.
+Use short connected paragraphs. No em dashes, slogans, filler or invented jargon.
+Use a table to compare outcomes, and steps only for a real procedure. Keep code
+symbols and test inventories out of the opening; add exact names and source links
+where readers need them to act. A diagram must carry its important failure and
+retry conditions, or clearly name the portion of the behavior it leaves out.
+Do not replace a wall of prose with a wall of boxes.
+
+Use `diagramLinks` for drill-down and `diagramDetails` for explanations in the
+owning Markdown. Each clickable explanation should make sense on its own: what
+happened, what allows the next step, and what remains uncertain. Full detail
+shows authored content; it does not launch agents or write files.
+
+For a new atlas or substantial refresh, follow
+[the reader-quality review](references/reader-quality.md) before completion.
+Test whether someone can use the docs, then check the simplified account against
+source. For a narrow edit, apply the same checks to the affected explanation.
+Page counts, model passes and rendering checks do not establish readability.
+
+## Require adversarial model verification
+
+TLA+ models remain optional. Every run that creates or changes a model, refreshes
+its source mapping, or reports model verification must follow
+[the model review procedure](references/model-review.md). For every model in
+that scope, require source-grounded adversarial review, a passing unmodified
+baseline, and reproducible negative controls that break the expected semantic
+rules. A full-atlas verification includes every linked model; a narrow update
+includes affected models and shared owners, with exclusions stated explicitly.
+Do not reuse old receipts as evidence that these checks ran this time.
+
+Resolve review findings and rerun affected checks after fixes. Missing review,
+missing controls, unexpected mutant passes, or unfinished checks mean verification
+is incomplete. Report the gap rather than claim completion. A passing TLC result
+alone does not satisfy this requirement or prove the implementation correct.
 
 ## Check a risky flow
 
 A chart says what is allowed. A model is that story written so a checker can
 try the steps and see whether the rules still hold. Not every page needs a
-model. Write one for a risky flow: pairing, leases, saving a secret, cleanup,
-and resume. The [file format](references/format.md#optional-rule-model) owns
+model. Consider one for consequential flows such as pairing, leases, saving a
+secret, cleanup and resume. Once selected, all model-review gates above apply. The [file format](references/format.md#optional-rule-model) owns
 the fields. This section is how you write and check the model.
 
 The model checks the design, not the code. A rule that holds here is not
@@ -172,10 +203,18 @@ the model together, or keep the break.
 
 Say what the model leaves out, on the page, in a sentence or two.
 
-### Check before you stamp
+### Record the checkpoint, then check
 
-Before you stamp the page, call `check_model`. It is the same check as the
-app's **Check rules** button.
+After reviewing the source, record `sourceRevision` as the checkpoint section
+requires. Do this before the final baseline and negative-control runs: the checker
+copies that checkpoint into its receipt. Changing it afterward makes that receipt
+stale and requires another check.
+
+When the host provides `check_model`, call it. It is the same check as the app's
+**Check rules** button. Without that tool or UI, use the repository's verification
+runner when it integrates the canonical Nessa Docs checker and receipt writer.
+Do not invent an unavailable command or hand-write a receipt. If no supported
+execution route is available, report model verification as incomplete.
 
 If the checker is missing, install it and call again: `check_model` with
 `action` set to `install`, then a check. Settings → Health has the same
@@ -196,8 +235,7 @@ as this check.
 
 Read back the rules held, the rules broken with their numbered path and the
 chart states they marked, the rules not checked, and the state count. Report
-all four, including the empty ones. Then record `sourceRevision` as the
-checkpoint section says. If a rule broke, or any rule was not checked, say
+all four, including the empty ones. If a rule broke, or any rule was not checked, say
 that in the checker's words. The checkpoint does not turn either into a pass.
 
 ### A failing path
