@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "browser": "156.0.8078.80",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "pages": 12,
+  "diagrams": 7,
+  "errors": [],
+  "results": [
+    {
+      "id": "skills",
+      "figures": 1,
+      "failed": 0
+    },
+    {
+      "id": "skill-authoring",
+      "figures": 0,
+      "failed": 0
+    },
+    {
+      "id": "skill-coding",
+      "figures": 1,
+      "failed": 0
+    },
+    {
+      "id": "skill-connect",
+      "figures": 1,
+      "failed": 0
+    },
+    {
+      "id": "skill-design",
+      "figures": 0,
+      "failed": 0
+    },
+    {
+      "id": "skill-installation",
+      "figures": 1,
+      "failed": 0
+    },
+    {
+      "id": "skill-investigation",
+      "figures": 1,
+      "failed": 0
+    },
+    {
+      "id": "skill-ownership",
+      "figures": 0,
+      "failed": 0
+    },
+    {
+      "id": "skill-pull-requests",
+      "figures": 0,
+      "failed": 0
+    },
+    {
+      "id": "skill-test-gaps",
+      "figures": 1,
+      "failed": 0
+    },
+    {
+      "id": "skill-trace",
+      "figures": 1,
+      "failed": 0
+    },
+    {
+      "id": "skill-verification",
+      "figures": 0,
+      "failed": 0
+    }
+  ]
+}
