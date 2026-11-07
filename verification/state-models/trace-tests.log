@@ -1,0 +1,11 @@
+test_depth_first_order_and_shared_leaf_cycle_deduplication (__main__.TraceBehavior) ... ok
+test_missing_definition_is_reported_as_gap (__main__.TraceBehavior) ... ok
+test_nonpositive_depth_still_inspects_root (__main__.TraceBehavior) ... ok
+test_one_hop_and_call_text_deduplication (__main__.TraceBehavior) ... ok
+test_positive_depth_limits_recursive_expansion (__main__.TraceBehavior) ... ok
+test_recursive_candidate_file_can_expand_multiple_same_name_methods (__main__.TraceBehavior) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.634s
+
+OK

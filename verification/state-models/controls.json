@@ -1,0 +1,16 @@
+[
+  {
+    "owner": "skill-trace",
+    "name": "emit-same-definition-twice",
+    "rule": "UniqueEmission",
+    "from": "Head(stack).node \\notin seen",
+    "to": "TRUE"
+  },
+  {
+    "owner": "skill-trace",
+    "name": "expand-beyond-depth",
+    "rule": "DepthBound",
+    "from": "Head(stack).depth < limit",
+    "to": "TRUE"
+  }
+]

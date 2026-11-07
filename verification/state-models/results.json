@@ -1,0 +1,97 @@
+{
+  "date": "2026-11-03T09:02:34.287Z",
+  "documents": 12,
+  "baselines": [
+    {
+      "owner": "skill-trace",
+      "id": "aab23229-18e9-492c-a621-0b9711ef4072",
+      "state": "passed",
+      "message": "Every rule held. This checks the design, not the code.",
+      "result": {
+        "sourceRevision": "1ae753c25b29967c0a8672c275d3d1d40f0de865",
+        "checker": "tlc-1.7.4",
+        "date": "2026-11-03T09:02:35.058Z",
+        "config": "tla/TraceTraversal.cfg",
+        "modelDigest": "f31e3ace3bcb7743ceffdd547a0862361a5bdc1df23734c2c003d405720ae316",
+        "states": 10,
+        "held": [
+          "UniqueEmission",
+          "DepthBound"
+        ],
+        "broke": [],
+        "unchecked": []
+      }
+    }
+  ],
+  "controls": [
+    {
+      "name": "emit-same-definition-twice",
+      "owner": "skill-trace",
+      "expected": "UniqueEmission",
+      "passed": true,
+      "id": "dfafc351-7971-4eb2-a2ff-e3850c39e0fb",
+      "state": "broke",
+      "message": "A rule broke. This checks the design, not the code.",
+      "result": {
+        "sourceRevision": "1ae753c25b29967c0a8672c275d3d1d40f0de865",
+        "checker": "tlc-1.7.4",
+        "date": "2026-11-03T09:02:36.408Z",
+        "config": "tla/TraceTraversal.cfg",
+        "modelDigest": "ad1af3a79e171b81340a3edbbc48769b8655a4e142e59152452147b992461964",
+        "states": 11,
+        "held": [
+          "DepthBound"
+        ],
+        "broke": [
+          {
+            "rule": "UniqueEmission",
+            "path": [
+              "Start with seen is {}, stack is <<[node |-> \"A\", depth |-> 1]>>, emitted is <<>>, limit is 3.",
+              "Visit: seen is {\"A\"}, stack is <<[node |-> \"B\", depth |-> 2], [node |-> \"C\", depth |-> 2]>>, emitted is <<[node |-> \"A\", depth |-> 1]>>, limit is 3.",
+              "Visit: seen is {\"A\", \"B\"}, stack is <<[node |-> \"D\", depth |-> 3], [node |-> \"C\", depth |-> 2]>>, emitted is <<[node |-> \"A\", depth |-> 1], [node |-> \"B\", depth |-> 2]>>, limit is 3.",
+              "Visit: seen is {\"A\", \"B\", \"D\"}, stack is <<[node |-> \"C\", depth |-> 2]>>, emitted is << [node |-> \"A\", depth |-> 1],, [node |-> \"B\", depth |-> 2],, [node |-> \"D\", depth |-> 3] >>, limit is 3.",
+              "Visit: seen is {\"A\", \"B\", \"C\", \"D\"}, stack is <<[node |-> \"D\", depth |-> 3]>>, emitted is << [node |-> \"A\", depth |-> 1],, [node |-> \"B\", depth |-> 2],, [node |-> \"D\", depth |-> 3],, [node (shortened)",
+              "Visit: seen is {\"A\", \"B\", \"C\", \"D\"}, stack is <<>>, emitted is << [node |-> \"A\", depth |-> 1],, [node |-> \"B\", depth |-> 2],, [node |-> \"D\", depth |-> 3],, [node |-> \"C\", depth |-> 2],, [n (shortened)"
+            ],
+            "states": []
+          }
+        ],
+        "unchecked": []
+      }
+    },
+    {
+      "name": "expand-beyond-depth",
+      "owner": "skill-trace",
+      "expected": "DepthBound",
+      "passed": true,
+      "id": "1eccb4a8-384b-447a-8cbd-b54c9183e562",
+      "state": "broke",
+      "message": "A rule broke. This checks the design, not the code.",
+      "result": {
+        "sourceRevision": "1ae753c25b29967c0a8672c275d3d1d40f0de865",
+        "checker": "tlc-1.7.4",
+        "date": "2026-11-03T09:02:37.752Z",
+        "config": "tla/TraceTraversal.cfg",
+        "modelDigest": "101349a80d815075358f93d73df34c2458f36e73360f2ea4c3982af3daa57eef",
+        "states": 14,
+        "held": [
+          "UniqueEmission"
+        ],
+        "broke": [
+          {
+            "rule": "DepthBound",
+            "path": [
+              "Start with seen is {}, stack is <<[node |-> \"A\", depth |-> 1]>>, emitted is <<>>, limit is 2.",
+              "Visit: seen is {\"A\"}, stack is <<[node |-> \"B\", depth |-> 2], [node |-> \"C\", depth |-> 2]>>, emitted is <<[node |-> \"A\", depth |-> 1]>>, limit is 2.",
+              "Visit: seen is {\"A\", \"B\"}, stack is <<[node |-> \"D\", depth |-> 3], [node |-> \"C\", depth |-> 2]>>, emitted is <<[node |-> \"A\", depth |-> 1], [node |-> \"B\", depth |-> 2]>>, limit is 2.",
+              "Visit: seen is {\"A\", \"B\", \"D\"}, stack is <<[node |-> \"A\", depth |-> 4], [node |-> \"C\", depth |-> 2]>>, emitted is << [node |-> \"A\", depth |-> 1],, [node |-> \"B\", depth |-> 2],, [node |-> \" (shortened)"
+            ],
+            "states": []
+          }
+        ],
+        "unchecked": []
+      }
+    }
+  ],
+  "ok": true
+}
