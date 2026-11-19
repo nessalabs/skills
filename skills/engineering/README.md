@@ -52,9 +52,11 @@ fits, and you can also invoke them by name.
   no test looked at, and add that as tests in one pull request. Reach for it
   for a retro on recent bugs, from a daily scheduled job, or when
   `/test-gaps` is invoked.
-- **[wdym](./wdym/SKILL.md)**: say it in plain human language first. Reach for
-  it when explaining a design, a change, a diagnosis, or a result, and
-  whenever `/wdym` is invoked.
+- **[wdym](./wdym/SKILL.md)**: write every message a person reads so they get
+  it on the first read: the plain version first, sentences that are easy to
+  follow, and asks that are easy to answer. Reach for it for any reply, status
+  update, question or explanation to a person, and whenever `/wdym` is
+  invoked.
 
 ## How the set is organised
 

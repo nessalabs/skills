@@ -70,7 +70,7 @@ you can also type them.
 | **[method](skills/engineering/method/SKILL.md)** | You are investigating a defect, chasing a performance problem, weighing evidence, or deciding what to automate, test, or run in CI. |
 | **[trace](skills/engineering/trace/SKILL.md)** | You want the real runtime path of a feature, or where a delay, hang, or duplicate could come from. Walks the syntax tree one hop at a time; marks locks, waits, handoffs, and state; ends a debugging trace with suspects and probes. `/trace`. |
 | **[test-gaps](skills/engineering/test-gaps/SKILL.md)** | You want to know why the tests let recent bugs through. Reads the fixes that landed recently (the last 24 hours by default), names what each bug needed that no test looked at, and adds that as tests in one pull request. Works on any repository; runs on a schedule. `/test-gaps`. |
-| **[wdym](skills/engineering/wdym/SKILL.md)** | You are explaining a design, a change, a diagnosis, or a result, or the user says they don't follow. Lead with the plain human version. `/wdym`. |
+| **[wdym](skills/engineering/wdym/SKILL.md)** | You are writing anything a person reads: a reply, a status update, a question, or an explanation; or the user says they don't follow. Plain version first, sentences easy to follow, asks easy to answer. `/wdym`. |
 
 Each carries references that load only when the skill needs them: how to
 think in Rust and in React/TypeScript, and the testing rules, under `coding`;
