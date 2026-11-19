@@ -26,6 +26,12 @@ together and using rare phrases all save the writer words, and the habit grows
 the longer a conversation runs. Correct grammar does not protect you here: a
 sentence can be correct and still read like nothing a person would say.
 
+Length pulls the wrong way too. Models, and the models that grade them, tend
+to rate a longer answer as better, so "add one more point" feels helpful when
+it is not. Every extra idea is one more thing the reader must hold, and a long
+message tells them that answering it will be hard work. Busy readers skip or
+stop reading a message with too many topics or asks.
+
 ## The procedure
 
 1. **State the plain version first.** One or two short sentences. Everyday
@@ -36,7 +42,10 @@ sentence can be correct and still read like nothing a person would say.
    them. They never open the reply.
 3. **Swap, don't define.** If a word needs explaining, replace it with a
    simpler one. A parenthetical glossary is a failure of the sentence.
-4. **Read it once as the reader** before sending, as if you had not written
+4. **Cut ideas, not just words.** Before sending, remove every point the
+   reader does not need for this message. A side finding goes in its own
+   message, or nowhere. Editing tends to add, so make this pass on purpose.
+5. **Read it once as the reader** before sending, as if you had not written
    the conversation before it. Fix any sentence you had to read twice.
 
 Do this **first** in the reply. Keep the lead plain even when the rest of the
@@ -51,7 +60,7 @@ Each of these is grammatical, and each makes the reader work harder.
   you pushed broke". Notes-style text with the small words dropped saves you
   words and costs the reader.
 - **Keep the doer near the action.** A reader holds the subject until its verb
-  arrives. "The retry, which the worker the gateway started after the socket
+  arrives, and each new name or clause in between makes that harder. "The retry, which the worker the gateway started after the socket
   closed runs, fails" makes them hold three things. Split it: "When the socket
   closes, the gateway starts a worker. The worker's retry fails."
 - **Don't stack nouns.** "Session restore timeout budget" makes the reader
@@ -66,6 +75,23 @@ Each of these is grammatical, and each makes the reader work harder.
 - **Use the common phrase.** A rare or clever word pairing makes the reader
   stop and decode it. If people usually say it another way, say it that way.
 - **One idea per sentence.** If a sentence has two ideas, split it.
+
+## Make it easy to scan
+
+- The purpose of the message is clear from its first line.
+- One topic per message. Two unrelated things are two messages.
+- Short paragraphs. Use a list when the items really are a list, and bold
+  only the few words a skimming reader must not miss.
+
+## Say how sure you are
+
+- When you checked something, say what you checked, plainly and without
+  hedging.
+- When you are not sure, say so at the claim, in the first person: "I'm not
+  sure, but I think the cache is stale." People rely less on a wrong answer
+  when it says it might be wrong.
+- Hedge only the claims that need it. Hedging everything hides the one doubt
+  that matters.
 
 ## Asking a person to decide
 
