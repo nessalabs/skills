@@ -31,10 +31,11 @@ publish anything outside their tailnet.
 
 ## What this changes in the nessa-ios flow
 
-Today `./iphone.sh` builds Debug and installs with `xcrun devicectl`. That
-needs the phone paired with the Mac, unlocked and on the same network or
-cable, and the install runs in a Remote Control session on the Mac. Over the
-air:
+Read the checkout's own install script and README first; they change, and
+this section only says what to look for. A cable or `xcrun devicectl`
+install (nessa-ios's `./iphone.sh` works that way) needs the phone paired
+with the Mac, unlocked and close by, and someone running it on the Mac.
+Over the air:
 
 - **Removes** the phone's link to the Mac: the person installs from anywhere,
   whenever they open the link.
@@ -43,8 +44,9 @@ air:
   their OK, but it can end with a link instead of waiting for the phone.
 - **Removes the Mac step entirely** only when a CI Mac builds it (step 6).
 
-Build **Release**. Debug builds of nessa-ios use the mock repository, so a
-Debug build on a phone talks to no gateway.
+Build the configuration that talks to a real gateway. Check the nessa-ios
+README for which one that is: a build on the mock repository installs fine
+and shows only demo chats.
 
 ## 1. Once: what only the account holder can provide
 
@@ -153,7 +155,7 @@ When it fails:
 | "Unable to install" | The phone is not in the build's profile: register it and build again |
 | "This provisioning profile cannot be installed on this device" | Stale profiles on the Mac: clear `~/Library/Developer/Xcode/UserData/Provisioning Profiles` and build again |
 | App installs but will not open | Developer Mode is off, or the development certificate or profile expired (each lasts a year): build again |
-| App opens to the demo chats | A Debug build: export Release |
+| App opens to the demo chats | A build on the mock repository: build the live configuration |
 
 ## 6. Without the Mac: a CI Mac
 

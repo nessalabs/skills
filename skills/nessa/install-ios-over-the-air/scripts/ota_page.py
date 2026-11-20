@@ -86,6 +86,11 @@ def main() -> None:
         sys.exit("--keep must be at least 1")
 
     info = app_info(a.ipa)
+    # An empty page at the root, so a static server lists no build folders:
+    # the unguessable folder name is the only permission a link carries.
+    # Written before any build folder exists, so a first publish lists none.
+    a.out.mkdir(parents=True, exist_ok=True)
+    (a.out / "index.html").write_text("")
     build_id = secrets.token_urlsafe(16)  # unguessable; never a fixed "latest"
     folder = a.out / build_id
     folder.mkdir(parents=True)
@@ -98,9 +103,6 @@ def main() -> None:
     (folder / "index.html").write_text(page(
         title, info.get("CFBundleShortVersionString", "?"), info.get("CFBundleVersion", "?"), link))
 
-    # An empty page at the root, so a static server lists no build folders:
-    # the unguessable folder name is the only permission a link carries.
-    (a.out / "index.html").write_text("")
     # Prune only folders this script made.
     builds = sorted(
         (d for d in a.out.iterdir()
