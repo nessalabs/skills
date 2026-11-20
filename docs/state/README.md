@@ -3,7 +3,7 @@ id: "skills"
 title: "Choose an engineering or Nessa skill"
 kind: "system"
 status: "implemented"
-summary: "This repository gives an agent written procedures for engineering work and Nessa setup. It does not run an agent service. Most files are instructions the host reads; the trace helper is the only executable tool shipped here."
+summary: "This repository gives an agent written procedures for engineering work and Nessa setup. It does not run an agent service. Most files are instructions the host reads; the trace helper and the over-the-air page writer are the only executable tools shipped here."
 parent: null
 sources:
   [
@@ -24,7 +24,7 @@ diagramLinks:
 
 # Choose an engineering or Nessa skill
 
-This repository gives an agent written procedures for engineering work and Nessa setup. It does not run an agent service. Most files are instructions the host reads; the trace helper is the only executable tool shipped here.
+This repository gives an agent written procedures for engineering work and Nessa setup. It does not run an agent service. Most files are instructions the host reads; the trace helper and the over-the-air page writer are the only executable tools shipped here.
 
 For example, when a message goes missing, use Trace to locate the path, Method to investigate the cause, Coding to make a supported change, and Pull requests to explain the result. These are cooperating procedures, not automatic stages enforced by a scheduler.
 
@@ -52,4 +52,4 @@ flowchart TD
   Nessa --> Products[External Nessa gateway and renderer]
 ```
 
-The checked-in plugin manifest lists nine skills: seven engineering and two Nessa skills. The README's “all seven” sentence describes the engineering group; it is not the whole plugin count. The source checkpoint is this repository's revision. A target project, agent host, Tailscale installation or Nessa binary has its own version and evidence boundary.
+The checked-in plugin manifest lists ten skills: seven engineering and three Nessa skills. The README's “all seven” sentence describes the engineering group; it is not the whole plugin count. The source checkpoint is this repository's revision. A target project, agent host, Tailscale installation or Nessa binary has its own version and evidence boundary.

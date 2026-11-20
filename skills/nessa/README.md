@@ -16,3 +16,11 @@ skills: a procedure someone follows, the way to think first, then the steps.
   service, a user flow, or a lifecycle, or when `/nessa-docs` is invoked.
   The file format lives in
   [references/format.md](./nessa-docs/references/format.md).
+- **[install-ios-over-the-air](./install-ios-over-the-air/SKILL.md)**: put a
+  signed nessa-ios build on a registered iPhone from a link: export with
+  development signing on a Mac, publish it with an `itms-services` manifest
+  over HTTPS, and tap Install in Safari. Reach for it when someone wants the
+  app on their phone without being at the Mac, or when
+  `/install-ios-over-the-air` is invoked. The script
+  [ota_page.py](./install-ios-over-the-air/scripts/ota_page.py) writes the
+  page and manifest for one build.

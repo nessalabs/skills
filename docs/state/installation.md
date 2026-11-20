@@ -32,6 +32,6 @@ flowchart TD
   Link --> Host
 ```
 
-The manual loop in the README names the seven engineering skills. It does not install the two Nessa skills by that loop. To make Nessa setup or documentation available, use a route that selects those directories too. Plugin discovery uses `.claude-plugin/plugin.json`; host-facing labels live in each skill's `agents/openai.yaml`.
+The manual loop in the README names the seven engineering skills. It does not install the three Nessa skills by that loop. To make Nessa setup or documentation available, use a route that selects those directories too. Plugin discovery uses `.claude-plugin/plugin.json`; host-facing labels live in each skill's `agents/openai.yaml`.
 
 An installed skill does not grant new account access, credentials, a checker, or a running service. The external installers and host update behavior were not executed for this atlas. If a skill is missing, inspect which directory the host actually loaded before installing a second copy.

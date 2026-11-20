@@ -19,7 +19,7 @@ diagramLinks: {}
 
 This atlas distinguishes written agent procedures from executable code. Most skills are guides, so a diagram of their prescribed steps is not evidence that an agent actually followed them.
 
-The trace helper has a selected bounded traversal model and direct Python behavior checks. All nine manifest skill paths are mapped in [the inventory](ownership.md), including the two Nessa product skills. Immutable metadata and human/agent procedures have no invented runtime model. External installers, agent hosts, Nessa services and parser internals remain explicit boundaries.
+The trace helper has a selected bounded traversal model and direct Python behavior checks. All ten manifest skill paths are mapped in [the inventory](ownership.md), including the three Nessa product skills. Immutable metadata and human/agent procedures have no invented runtime model. External installers, agent hosts, Nessa services and parser internals remain explicit boundaries.
 
 ## Reproduce the checks
 
@@ -40,4 +40,4 @@ Six [direct Python checks](../../verification/state-models/check_trace.py) passe
 
 Chrome opened all 12 pages and rendered all seven diagrams without errors; [browser results](../../verification/state-models/browser.json) record the check. Independent docs-only and source/model review found an overstatement about first-candidate selection: the chosen candidate selects a file, after which all bare-name definitions in that file can be inspected. That wording and the positive-depth explanation were corrected, and a real-parser regression probe demonstrates the distinction. [Review record](../../verification/state-models/review.md) records the final decision.
 
-These checks do not validate whether the nine prose skills make good decisions on arbitrary projects. The broader reader-quality skill pilot is separate evidence, and any unmerged skill changes are not silently treated as this atlas's source revision.
+These checks do not validate whether the ten prose skills make good decisions on arbitrary projects. The broader reader-quality skill pilot is separate evidence, and any unmerged skill changes are not silently treated as this atlas's source revision.
