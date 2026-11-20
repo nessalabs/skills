@@ -6,7 +6,7 @@ description: "Put a signed nessa-ios build on a registered iPhone from a link in
 # Install the iPhone app over the air
 
 Source: [Build an iPhone App on Your iPhone, Then Install It Over the Air](https://jfdi.bot/blog/build-iphone-app-on-iphone-install-over-the-air)
-(JFDI Bot, 2026-11-20). The technique below is that article's, applied to
+(JFDI Bot). The technique below is that article's, applied to
 nessa-ios.
 
 An iPhone will install an app from a web page when three things hold. The
@@ -102,13 +102,17 @@ The phone needs HTTPS with a certificate it trusts. Pick by reach:
 
   ```sh
   mkdir -p ~/nessa-ota
-  python3 -m http.server 8787 --bind 127.0.0.1 --directory ~/nessa-ota &
+  nohup python3 -m http.server 8787 --bind 127.0.0.1 --directory ~/nessa-ota \
+    > ~/nessa-ota.log 2>&1 &
   tailscale serve --bg --https=8443 http://127.0.0.1:8787
   ```
 
   The base URL is `https://<mac>.<tailnet>.ts.net:8443`. Port 8443 keeps
   this apart from anything already served on 443; `tailscale serve status`
-  shows both. The local server stops with the shell that started it.
+  shows both. `nohup` keeps the server up after the session that started it
+  ends, so the link still works when the person taps it later. Anyone on
+  the tailnet can reach the port; the random folder name is what keeps one
+  build's link from finding the others.
 - **Any static HTTPS host or bucket** when the phone is not on the tailnet.
   Upload the folder step 4 writes to an unguessable path. A presigned link
   (S3, R2) signs each file on its own, so sign the `.ipa` first, write its
@@ -129,7 +133,8 @@ python3 <skills>/skills/nessa/install-ios-over-the-air/scripts/ota_page.py \
 
 It reads the bundle id, version and name out of the `.ipa`, writes
 `index.html`, `manifest.plist` and the `.ipa` into a fresh random folder,
-keeps the last five builds, and prints the page URL. It escapes `&` in the
+keeps the last five builds it made, and prints the page URL. It puts an
+empty `index.html` at the folder's root so the server lists no builds. It escapes `&` in the
 manifest and URL-encodes the manifest's URL inside the `itms-services` link;
 missing either breaks the install. Before handing it over, run `curl -I` on
 the page, the manifest and the `.ipa` URLs and expect `200` for each.
@@ -147,7 +152,7 @@ When it fails:
 | Nothing happens on tap | Not Safari, or the manifest URL is not HTTPS or not reachable from the phone |
 | "Unable to install" | The phone is not in the build's profile: register it and build again |
 | "This provisioning profile cannot be installed on this device" | Stale profiles on the Mac: clear `~/Library/Developer/Xcode/UserData/Provisioning Profiles` and build again |
-| App installs but will not open | Developer Mode is off, or the signing certificate expired (they last a year) |
+| App installs but will not open | Developer Mode is off, or the development certificate or profile expired (each lasts a year): build again |
 | App opens to the demo chats | A Debug build: export Release |
 
 ## 6. Without the Mac: a CI Mac

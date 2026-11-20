@@ -8,6 +8,7 @@ certificate at --base-url. Standard library only, so the Mac's python3 runs it.
 Usage: ota_page.py IPA --base-url https://host/path --out DIR [--keep 5]
 """
 import argparse
+import re
 import html
 import plistlib
 import secrets
@@ -18,8 +19,15 @@ from pathlib import Path
 from urllib.parse import quote
 
 
+BUILD_ID = re.compile(r"[A-Za-z0-9_-]{22}")  # what secrets.token_urlsafe(16) makes
+
+
 def app_info(ipa: Path) -> dict:
     """Read the app's own Info.plist out of the .ipa (Payload/<Name>.app/)."""
+    if not ipa.is_file():
+        sys.exit(f"no such file: {ipa}")
+    if not zipfile.is_zipfile(ipa):
+        sys.exit(f"not an .ipa (zip) file: {ipa}")
     with zipfile.ZipFile(ipa) as z:
         names = [
             n for n in z.namelist()
@@ -28,7 +36,10 @@ def app_info(ipa: Path) -> dict:
         ]
         if len(names) != 1:
             sys.exit(f"expected one Payload/*.app/Info.plist in {ipa}, found {len(names)}")
-        return plistlib.loads(z.read(names[0]))
+        info = plistlib.loads(z.read(names[0]))
+    if not info.get("CFBundleIdentifier"):
+        sys.exit(f"{names[0]} has no CFBundleIdentifier")
+    return info
 
 
 def manifest(ipa_url: str, info: dict) -> bytes:
@@ -64,7 +75,7 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("ipa", type=Path)
     p.add_argument("--base-url", required=True, help="HTTPS URL that serves --out")
-    p.add_argument("--out", required=True, type=Path, help="folder this script owns; old builds in it are deleted")
+    p.add_argument("--out", required=True, type=Path, help="folder to publish; builds this script made there beyond --keep are deleted")
     p.add_argument("--keep", type=int, default=5, help="builds to keep (default 5)")
     a = p.parse_args()
     if not a.base_url.startswith("https://"):
@@ -87,7 +98,14 @@ def main() -> None:
     (folder / "index.html").write_text(page(
         title, info.get("CFBundleShortVersionString", "?"), info.get("CFBundleVersion", "?"), link))
 
-    builds = sorted((d for d in a.out.iterdir() if d.is_dir()), key=lambda d: d.stat().st_mtime)
+    # An empty page at the root, so a static server lists no build folders:
+    # the unguessable folder name is the only permission a link carries.
+    (a.out / "index.html").write_text("")
+    # Prune only folders this script made.
+    builds = sorted(
+        (d for d in a.out.iterdir()
+         if d.is_dir() and BUILD_ID.fullmatch(d.name) and (d / "manifest.plist").is_file()),
+        key=lambda d: d.stat().st_mtime)
     for old in builds[:-a.keep]:
         shutil.rmtree(old)
 

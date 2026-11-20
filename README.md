@@ -93,7 +93,8 @@ computer running agents for a Nessa hub over Tailscale.
 map and statecharts, and checks a risky flow with a small model before the
 page is stamped.
 **[install-ios-over-the-air](skills/nessa/install-ios-over-the-air/SKILL.md)**
-puts a signed nessa-ios build on a registered iPhone from a link. New buckets get their own folder and their own index.
+puts a signed nessa-ios build on a registered iPhone from a link.
+New buckets get their own folder and their own index.
 
 ## The idea
 

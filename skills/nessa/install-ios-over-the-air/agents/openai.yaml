@@ -1,3 +1,4 @@
 interface:
   display_name: "Install iOS over the air"
   short_description: "Put a signed nessa-ios build on a registered iPhone from a link"
+  default_prompt: "Use $install-ios-over-the-air to build nessa-ios with development signing, publish it over HTTPS with an install link, and give me the page to open in Safari on my iPhone."
