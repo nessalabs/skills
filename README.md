@@ -91,7 +91,9 @@ Skills are grouped into buckets under `skills/`, each with its own index:
 computer running agents for a Nessa hub over Tailscale.
 **[nessa-docs](skills/nessa/nessa-docs/SKILL.md)** writes a project's system
 map and statecharts, and checks a risky flow with a small model before the
-page is stamped. New buckets get their own folder and their own index.
+page is stamped.
+**[install-ios-over-the-air](skills/nessa/install-ios-over-the-air/SKILL.md)**
+puts a signed nessa-ios build on a registered iPhone from a link. New buckets get their own folder and their own index.
 
 ## The idea
 

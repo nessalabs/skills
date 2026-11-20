@@ -1,0 +1,3 @@
+interface:
+  display_name: "Install iOS over the air"
+  short_description: "Put a signed nessa-ios build on a registered iPhone from a link"
