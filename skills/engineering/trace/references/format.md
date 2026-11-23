@@ -16,7 +16,7 @@ symptom: a task is queued but never runs.
 
 ```text
 # Trace: spawn_blocking(f) → f runs on a blocking-pool thread
-Entry: task::spawn_blocking(f)                          src/task/blocking.rs:220
+Entry: task::spawn_blocking(f) (src/task/blocking.rs:220)
 Question: debugging — the JoinHandle for f is never woken; no error, no panic
 Source: tokio @ cf782c5; external: none walked (std Mutex/Condvar via loom shim)
 
@@ -32,91 +32,69 @@ Mechanisms considered: M1 lost wake-up between notify and wait  M2 pool at cap
 with every worker blocked  M3 thread spawn fails and nothing retries  M4 shutdown
 cancels or drops queued work
 
-## Common prefix
-
-|
-|  [ blocking::pool · thread: caller ]
-|     spawn_blocking(f)                              src/task/blocking.rs:220
-|-----> Handle::spawn_blocking … Spawner::spawn_task (via runtime::spawn_blocking, spawn_blocking_inner)
-|                                                    src/runtime/blocking/pool.rs:246 … :459
-|   // state: task = unowned(BlockingTask(f)); JoinHandle minted here   pool.rs:452
-|-----> LockedImpl::spawn_task                       pool.rs:611
-|   +lock mutex                                      pool.rs:620
-|   ? thread_mgmt_state.shutdown   → A | Q            pool.rs:622
-
-## Path A — shutdown already begun, from ? shutdown == true
-
-|-----> task.shutdown()                              pool.rs:626
-|   -lock mutex
-|<----- return Err(ShuttingDown)                     pool.rs:627
-Not the symptom: the JoinHandle resolves with JoinError::cancelled.
-
-## Path Q — task accepted, from ? shutdown == false
-
-|-----> queue.push_back(task)                        pool.rs:630
-|   // state: queue_depth += 1                       pool.rs:631
-|   ? num_idle_threads() == 0      → Q1 | Q2          pool.rs:633
-
-### Path Q1 — no idle worker
-
-|-----> on_no_idle                                   pool.rs:634 → :476
-|   ? num_threads() == thread_cap  → AT-CAP | BELOW   pool.rs:479
-|
-|  AT-CAP:
-|   -lock mutex                                      pool.rs:646
-|   !! S1 nothing is notified and nothing is spawned; the task depends on a
-|      running worker reaching pop_front again        pool.rs:479-482
-|
-|  BELOW:
-|-----> spawn_thread(shutdown_tx, rt, id)             pool.rs:490 → :516
-|   ? spawn result   → Ok | WouldBlock ∧ peers > 0 | other   pool.rs:491,496,504
-|   Ok:      // state: num_threads += 1; worker_threads[id] = handle   pool.rs:492-494
-|            -lock mutex
-|            ~~~> OS thread starts        ==> [thread: worker]           pool.rs:530
-|   WouldBlock ∧ peers > 0:
-|            -lock mutex
-|            !! S2 same outcome as S1 by a different gate: queued, no thread, no notify   pool.rs:496-503
-|   other:   return Err(NoThreads) → panic in caller   pool.rs:507, :394   (not the symptom)
-
-### Path Q2 — idle worker exists
-
-|   // state: num_idle_threads -= 1; num_notify += 1   pool.rs:641-642
-|   ~~~> condvar.notify_one           ==> [thread: worker]   pool.rs:643
-|   -lock mutex                                       pool.rs:646
-
-## Worker spine
-
-|
-|  [ blocking::pool · thread: worker ]
-|     Inner::run → LockedImpl::run_worker             pool.rs:763 → :650
-|   +lock mutex                                       pool.rs:656
-|-----> BUSY: queue.pop_front()                       pool.rs:663
-|   -lock mutex
-|-----> task.run()   [opaque: user code f; may block or re-enter the runtime]   pool.rs:666
-|   +lock mutex                                       pool.rs:668
-|<----- loop to pop_front                             advances while the queue is non-empty
-|   // state: num_idle_threads += 1; is_counted_idle = true   pool.rs:672-674
-|=====> condvar.wait_timeout   WAITS: until notify or keep_alive (releases mutex; reacquires on wake)   pool.rs:677
-|   ? num_notify != 0    → NOTIFIED | TIMED-OUT        pool.rs:682-697
-|   NOTIFIED:  // state: num_notify -= 1               pool.rs:686
-|              <----- loop to pop_front
-|   TIMED-OUT: // state: worker removed; num_threads -= 1   pool.rs:698-743
-|              thread exits; the pool re-climbs from zero on the next burst
+┌─ blocking::pool · thread: caller ────────────────────────
+│ task::spawn_blocking(f) (src/task/blocking.rs:220)
+│ └─ Handle::spawn_blocking … Spawner::spawn_task (pool.rs:246…459)
+│    [state] JoinHandle minted; task = BlockingTask(f) (:452)
+│    └─ LockedImpl::spawn_task (pool.rs:611)
+│       ┌─ [lock: mutex] (:620)
+│       │  if thread_mgmt_state.shutdown (:622)
+│       │  ├─ true  ─▶ task.shutdown() (:626) ─▶ Err(ShuttingDown)
+│       │  │           (not the symptom: JoinHandle gets cancelled err)
+│       │  └─ false ─▶ queue.push_back(task) (:630)
+│       │              [state] queue_depth += 1 (:631)
+│       │              if num_idle_threads() == 0 (:633)
+│       │              ├─ false ─▶ [state] idle -= 1; num_notify += 1 (:641-642)
+│       │              │           ──▶ condvar.notify_one [thread: worker] (:643)
+│       │              └─ true  ─▶ on_no_idle (:634 → :476)
+│       │                          if num_threads() == thread_cap (:479)
+│       │                          ├─ true  ─▶ [SUSPECT S1] no notify, no spawn;
+│       │                          │           waits for a busy worker to pop (:479-482)
+│       │                          └─ false ─▶ spawn_thread (:490 → :516)
+│       │                                      ├─ Ok ─▶ [state] num_threads += 1 (:492-494)
+│       │                                      │        ──▶ OS thread starts [thread: worker] (:530)
+│       │                                      ├─ WouldBlock & peers > 0
+│       │                                      │   ─▶ [SUSPECT S2] queued, no thread, no notify (:496-503)
+│       │                                      └─ other ─▶ Err(NoThreads) ─▶ panic (:507, :394)
+│       └─ [unlock: mutex] (:646)
+└──────────┬───────────────────────────────────────────────
+           │  notify_one / OS thread start
+           ▼
+┌─ blocking::pool · thread: worker ────────────────────────
+│ Inner::run → LockedImpl::run_worker (pool.rs:763 → :650)
+│ ┌─ [lock: mutex] (:656)
+│ │  loop (advances while queue is non-empty):
+│ │  ├─ queue.pop_front() (:663)
+│ │  │  └─ [unlock: mutex] ─▶ task.run() [opaque: user code f; may block/re-enter] (:666)
+│ │  │     └─ [lock: mutex] ─▶ [loop] back to pop_front (:668)
+│ │  └─ queue empty:
+│ │     [state] num_idle_threads += 1; is_counted_idle = true (:672-674)
+│ │     [wait] condvar.wait_timeout — until notify or keep_alive (:677)
+│ │            (releases mutex; reacquires on wake)
+│ │     if num_notify != 0 (:682-697)
+│ │     ├─ true  ─▶ [state] num_notify -= 1 ─▶ [loop] back to pop_front (:686)
+│ │     └─ false ─▶ [state] worker removed; num_threads -= 1 ─▶ thread exits (:698-743)
+│ └─ [unlock: mutex]
+└──────────────────────────────────────────────────────────
 
 ## Actor — runtime shutdown
 
-|
-|  [ BlockingPool::shutdown · thread: whoever drops the Runtime ]
-|-----> begin_shutdown                                pool.rs:748
-|   +lock mutex
-|   // state: shutdown = true; shutdown_tx = None     pool.rs:750
-|   ~~~> condvar.notify_all         ==> [thread: every idle worker]   pool.rs:751
-|   -lock mutex
-|=====> shutdown_rx.wait(timeout)   WAITS: until every worker's Inner::run returns   pool.rs:332
-|
-|  [ blocking::pool · thread: worker ]  (after NOTIFIED/TIMED-OUT with shutdown set)
-|-----> while queue.pop_front()                       pool.rs:708
-|   ? task.mandatory   → run it | task.shutdown()      pool.rs:712
+┌─ BlockingPool::shutdown · thread: whoever drops Runtime ─
+│ begin_shutdown (pool.rs:748)
+│ ┌─ [lock: mutex]
+│ │  [state] shutdown = true; shutdown_tx = None (:750)
+│ │  ──▶ condvar.notify_all [thread: every idle worker] (:751)
+│ └─ [unlock: mutex]
+│ [wait] shutdown_rx.wait(timeout) — until every worker returns (:332)
+└──────────┬───────────────────────────────────────────────
+           │  notify_all (worker wakes with shutdown set)
+           ▼
+┌─ blocking::pool · thread: worker ────────────────────────
+│ while queue.pop_front() (pool.rs:708)
+│ └─ if task.mandatory (:712)
+│    ├─ true  ─▶ run it
+│    └─ false ─▶ task.shutdown()
+└──────────────────────────────────────────────────────────
 Queued work is run (mandatory) or cancelled (not), never dropped silently. A
 worker wedged inside f also wedges an untimed shutdown.
 
@@ -154,64 +132,60 @@ reacquires that mutex atomically, so a timeout cannot beat a notify.
 - Which waiter notify_one wakes is the platform's condvar; any waiter suffices.
 ```
 
-What to notice: the prefix is written once and ends at the first decision;
-each path is named by its predicate; the worker is its own spine joined by
-`~~~>`; the wait line says which lock it releases; shutdown is an actor, not a
-path; plumbing between `spawn_blocking` and `spawn_task` is one collapsed
-line; the ending is four sections and a ruled-out mechanism with its evidence.
+What to notice: branches fork inline under each `if`; the `┌─ [lock: mutex]`
+bracket wraps the entire critical section including `notify_one`; the worker is
+its own box joined by the handoff arrow; the `[wait]` line says which lock it
+releases; shutdown is an `## Actor` box; plumbing between `spawn_blocking` and
+`spawn_task` is one collapsed line; the ending has four sections and a ruled-out
+mechanism with its evidence.
 
 ---
 
 ## ASCII, understanding mode
 
-Same line forms, every branch as a path, and only `## Gaps` at the end.
+Same boxed call chart, every branch shown inline, and only `## Gaps` at the end.
 
 ```text
 # Trace: submit a chat message
-Entry: Composer.onSubmit                              ui/composer.tsx:41
+Entry: Composer.onSubmit (ui/composer.tsx:41)
 Question: understanding
 Source: app @ 3f2c1a9
 
 The draft goes store → client → websocket → server and back; the store marks
 the turn busy before the request and idle after the reply or the failure.
 
-## Common prefix
-
-|
-|  [ UI ]
-|     Composer.onSubmit                                ui/composer.tsx:41
-|-----> useChat.submit                                 ui/use-chat.ts:22
-|   ? draft.trim() === ""          → B | A              ui/use-chat.ts:24
-
-## Path A — non-empty draft
-
-|
-|  [ Store ]
-|-----> dispatch(sendMessage)                          store/chat.ts:80
-|   // state: transcript += user turn; phase = busy    store/chat.ts:88
-|
-|  [ Client ]
-|-----> Client.conversation.send                       client/conversation.ts:15
-|   ? session == null              → C | continue       client/conversation.ts:17
-|-----> session.request("conversation.send")           client/session.ts:60
-|   ~~~> WebSocket request         ==> [process: server]
-|
-|  [ Server ]
-|-----> conversation::handle_send                      server/conversation.rs:120
-|   ~~~> WebSocket response        ==> [process: client]
-|
-|  [ Store ]
-|-----> completeSend                                   store/chat.ts:104
-|   // state: transcript += reply; phase = idle
-
-## Path B — empty draft, from ? draft.trim() === ""
-
-|-----> early return                                   ui/use-chat.ts:25
-
-## Path C — not connected, from ? session == null
-
-|-----> sendMessage.rejected                           store/chat.ts:112
-|   // state: keep user turn; error shown; phase = idle
+┌─ UI ─────────────────────────────────────────────────────
+│ Composer.onSubmit (ui/composer.tsx:41)
+│ └─ useChat.submit (ui/use-chat.ts:22)
+│    └─ if draft.trim() === "" (:24)
+│       ├─ yes ─▶ early return (:25)
+│       └─ no  ─▶ Store
+└──────────┬───────────────────────────────────────────────
+           ▼
+┌─ Store ──────────────────────────────────────────────────
+│ dispatch(sendMessage) (store/chat.ts:80)
+│   [state] transcript += user turn; phase = busy (:88)
+└──────────┬───────────────────────────────────────────────
+           ▼
+┌─ Client ─────────────────────────────────────────────────
+│ Client.conversation.send (client/conversation.ts:15)
+│ └─ if session == null (:17)
+│    ├─ yes ─▶ sendMessage.rejected (store/chat.ts:112)
+│    │           [state] keep user turn; show error; phase = idle
+│    └─ no  ─▶ session.request("conversation.send") (:60)
+└──────────┬───────────────────────────────────────────────
+           │  WebSocket request
+           ▼
+┌─ Server (process: server) ───────────────────────────────
+│ conversation::handle_send (server/conversation.rs:120)
+│   [gap] trait dispatch at :131 (EchoBackend | ModelBackend)
+└──────────┬───────────────────────────────────────────────
+           │  WebSocket response
+           ▼
+┌─ Store ──────────────────────────────────────────────────
+│ completeSend (store/chat.ts:104)
+│   [state] transcript += reply; phase = idle
+└──────────────────────────────────────────────────────────
 
 ## Gaps
 - The server handler dispatches on a trait object at server/conversation.rs:131;
@@ -261,7 +235,7 @@ Paths B and C are separate diagrams, not hidden branches inside Path A.
 - Do not collapse failure paths into a footnote on the happy path.
 - Do not use remembered traces from an earlier session, including the example
   above.
-- Do not invent hops past a stub; write a `gap:` line.
+- Do not invent hops past a stub; write a `[gap]` line.
 - Do not mark every state write; mark the ones that gate the observable.
 - Do not put a mechanism you have ruled out in the ranked suspects.
 - Do not default to printing ASCII and mermaid together.

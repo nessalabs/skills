@@ -131,7 +131,7 @@ How to use it:
 - **An unresolved callee is a finding.** "Not defined in repo" means the path
   leaves the repository (a dependency, the standard library), goes through a
   trait object or function pointer, or is a closure passed in. Each of those is
-  either an `ext:` hop to follow into the installed source or a `gap:` line.
+  either an `[ext]` hop to follow into the installed source or a `[gap]` line.
 - **Qualified names disambiguate.** `Type::method` and `Class.method` pick the
   definition inside that container; a bare name lists every definition with
   that name, nearest to the caller first.
@@ -168,81 +168,83 @@ Mechanisms considered: M1 <...>  M2 <...>  M3 <...>      (debugging mode)
 
 ### Line forms
 
-One spine per thread of control. Every hop carries its location. The markers
-are the whole point; a trace without them is a call list.
+Use open-right layer boxes (`┌─ Layer ─`) connected by `▼` arrows, with
+`├─` / `└─` tree branches for calls and `if` decisions. Leaving off the
+right-side box border keeps the chart clean and prevents misalignment. Every
+hop carries its `(path:line)` inline, and the bracket tags are the whole point;
+a trace without them is just a call list.
 
 ```text
-|-----> Symbol                                  path:line     call, next hop
-|-----> A … D (via B, C)                        path:line     collapsed plumbing; cite entry and exit
-|   ? predicate                → A | B           path:line     decision; names the paths it selects
-|   ? predicate [set at path:line]  → A | B                    decision made earlier, observed here
-|   // state: field = value                                    write that gates the observable
-|   +lock name  ...  -lock name                                lock held from + to - (bracket the hops between)
-|=====> Symbol   WAITS: until <condition>        path:line     blocking point; say what unblocks it
-|=====> wait(cv)  WAITS: … (releases name; reacquires on wake)  a wait that is also the lock's release
-|<----- loop to Symbol                                         back edge; say what advances it
-|-----> run(f)   [opaque: user code; may block or re-enter]    loop body or callback you cannot see into
-|   ~~~> notify/wake/send  ==> [thread: name]                  cross-thread or cross-process handoff
-|   ext: crate@version path:line                               hop outside the repo
-|   !! S1 <why this hop could produce the symptom>             suspect marker (debugging mode)
-|   gap: <stub, dynamic dispatch, callback registry>           the static walk cannot continue
+└─ Symbol (path:line)                        call / next hop
+└─ A … D (via B, C) (path:line…line)         collapsed plumbing; cite entry and exit
+if <predicate> (:line)                       decision; branches inline with ├─ / └─
+if <predicate> [set at path:line]            decision made earlier, observed here
+  [state] field = value (:line)              write that gates the observable
+┌─ [lock: name] … └─ [unlock: name]          lock held across enclosed hops
+  [wait] Symbol — until <condition> (:line)  blocking point; say what unblocks it
+  [wait] wait(cv) — … (releases name; reacquires on wake)  wait that releases a lock
+  [loop] back to Symbol (advances on …)      back edge; say what advances it
+  [opaque: user code; may block/re-enter]    loop body or callback you cannot see into
+──▶ <event> [thread/process: name]           cross-thread or cross-process handoff
+  [ext: crate@version path:line]             hop outside the repo
+  [SUSPECT S1] <why this hop produces symptom>  suspect marker (debugging mode)
+  [gap] <stub / dynamic dispatch / registry> the static walk cannot continue
 ```
 
-Layers are boxes labelled with the names the codebase uses, and with the
-thread when more than one is involved: `[ blocking::pool · thread: worker ]`.
+Layers are open-right boxes labelled with the names the codebase uses, and with
+the thread or process when more than one is involved:
+`┌─ blocking::pool · thread: worker ───`.
 
-Across a handoff, the sender keeps its `+lock` bracket open through the
-`~~~>` line if it still holds the lock there, and closes it after. The
-receiver's wait line says which lock it releases while waiting. That is the
-convention for every condition-variable pool; write it, do not reinvent it.
+Across a handoff, the sender keeps its `┌─ [lock: name]` bracket open through
+the `──▶` line if it still holds the lock there, and closes it with
+`└─ [unlock: name]` after. The receiver's `[wait]` line says which lock it
+releases while waiting.
 
 ### Shape
 
 ```text
-## Common prefix
+┌─ <Layer> · thread: <caller> ─────────────────────────────
+│ <Entry> (path:line)
+│ └─ <hop> (path:line)
+│    [state] <what changed> (:line)
+│    ┌─ [lock: <name>] (:line)
+│    │  if <predicate> (:line)
+│    │  ├─ true  ─▶ <hop> (:line)
+│    │  │           [state] <counter> += 1
+│    │  │           ──▶ notify_one [thread: worker] (:line)
+│    │  └─ false ─▶ <other hop> (:line)
+│    └─ [unlock: <name>] (:line)
+└──────────┬───────────────────────────────────────────────
+           │  notify_one
+           ▼
+┌─ <Layer> · thread: worker ───────────────────────────────
+│ <Entry> (path:line)
+│ ┌─ [lock: <name>] (:line)
+│ │  [wait] wait_timeout (:line)
+│ │         (releases <name>; reacquires on wake or timeout)
+│ │  if num_notify != 0 (:line)
+│ │  ├─ true  ─▶ <hop> (:line) ─▶ [loop] back to <hop>
+│ │  └─ false ─▶ <timed out hop> (:line)
+│ └─ [unlock: <name>]
+└──────────────────────────────────────────────────────────
 
-|
-|  [ <Layer> ]
-|     <Entry>                                    path:line
-|-----> <hop>                                    path:line
-|   // state: <what changed>
-|   ? <predicate>              → A | B           path:line
+## Actor — <name>  (shutdown, signal handler, timer: not selected by any predicate above)
 
-## Path A — <label>, from ? <predicate>
-
-|
-|  [ <Layer> ]
-|-----> <hop>                                    path:line
-|   +lock <name>
-|-----> <hop>                                    path:line
-|   // state: <counter> += 1
-|   ~~~> notify_one            ==> [thread: worker]
-|   -lock <name>
-|
-|  [ <Layer> · thread: worker ]
-|=====> wait_timeout   WAITS: until notify or keep_alive (releases <name>; reacquires on wake)   path:line
-|   ? num_notify != 0          → continue | timed out (Path G)
-|-----> <hop>                                    path:line
-|<----- loop to <hop>                            advances when queue empties
-
-## Path B — <label>, from ? <predicate>
-...
-
-## Actor — <name>  (runtime shutdown, a signal handler, a timer: not selected by any predicate above)
-
-|
-|  [ <Layer> · thread: <who> ]
-|-----> <hop>                                    path:line
-|   ~~~> notify_all            ==> [thread: every worker]
+┌─ <Layer> · thread: <who> ────────────────────────────────
+│ <hop> (path:line)
+│ └─ ──▶ notify_all [thread: every worker] (:line)
+└──────────────────────────────────────────────────────────
 ```
 
-The common prefix is written once and ends at the first decision. Each path
-starts by naming the predicate and value that selects it. A path that shares
-its middle with another says `as Path A from <hop> to <hop>` for that stretch
-only; the hops that differ are written in full. A thread that acts on the
-traced state without being selected by a decision in the path (shutdown, a
-signal, a timer) is an `## Actor` spine, joined to the paths by `~~~>` lines.
-Same feature, other outcomes: separate paths, never footnotes.
+Keep branches inline under their `if` whenever nesting stays within about three
+levels. When a branch grows deep or wide enough to crowd 80 columns, split it
+into its own `## Branch <label>` box and point to it with
+`──▶ see [Branch <label>]`. A branch that shares its middle with another can
+say `as <Branch> from <hop> to <hop>` for that stretch only; write the hops
+that differ in full. A thread that acts on the traced state without being
+selected by a decision in the path (shutdown, a signal, a timer) is an
+`## Actor` box joined to the main chart by `──▶` lines. Same feature, other
+outcomes: full branches or boxes, never footnotes.
 
 ### Ending
 
@@ -293,7 +295,7 @@ worked example and the mermaid twin.
 - [ ] The mechanism is stated in plain words before any tree
 - [ ] Debugging mode lists the mechanisms considered, and they are the stopping rule for branches
 - [ ] Every hop has a file and line; external hops name the crate and version
-- [ ] Every decision is a `?` line naming the predicate and the paths it selects
+- [ ] Every decision is an `if` branch naming the predicate and the outcomes it selects
 - [ ] Gating state writes, lock brackets, waits, back edges, and handoffs are marked; plumbing is collapsed
 - [ ] Every branch the mode requires has its own path or actor spine; omitted branches are listed with a reason
 - [ ] Symbols match the code; syscalls and foreign processes are labelled as such
