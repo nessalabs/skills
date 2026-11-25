@@ -5,485 +5,188 @@ description: "The working method for any code change - a feature, a fix, a refac
 
 # Coding
 
-This is the layer for *how to work*. The other layers, and when each applies:
+This skill covers how to work through a code change. Each rule lives in one
+place; where a section links elsewhere, that file owns the rule.
 
 | Layer | Where | When |
 | --- | --- | --- |
-| How to think about the system | [`system-architect`](../system-architect/SKILL.md) | Designing, structuring, or reviewing anything spanning more than one file |
-| How to work | this document | Every code change |
-| How to think in the language | [Rust](references/rust.md), [React & TypeScript](references/react-typescript.md) | While writing in that language |
-| What to test, and how | [testing](references/testing.md) | Deciding whether something needs a test, and which kind |
-| How to find and prove things | [`method`](../method/SKILL.md) | Investigating a bug, chasing a performance problem, deciding what to automate |
-| How to describe and review a change | [`pull-requests`](../pull-requests/SKILL.md) | Writing the description, sizing the change, reviewing someone else's |
-| How a feature actually runs | [`trace`](../trace/SKILL.md) | Asking what happens on an action, or invoking `/trace` |
-| How to say it | [`wdym`](../wdym/SKILL.md) | Explaining any of the above to a person |
+| System design | [`system-architect`](../system-architect/SKILL.md) | Designing, structuring, or reviewing across files |
+| Working method | this document | Every code change |
+| Contracts and state | [contracts & state](references/contracts-and-state.md) | Input rules, intermediate states, or cross-owner messages |
+| Failure-first checklist | [failure-first](references/failure-first.md) | Edge cases for state, bounds, cleanup, and shutdown |
+| Performance checklist | [performance](references/performance.md) | Benchmarks, contract parity, caching, and scheduling |
+| Testing | [testing](references/testing.md) | Choosing what to test and how |
+| Language specifics | [Rust](references/rust.md), [React & TypeScript](references/react-typescript.md) | Writing in that language |
+| Investigation and proof | [`method`](../method/SKILL.md) | Debugging, profiling, or deciding what to automate |
+| Pull requests and review | [`pull-requests`](../pull-requests/SKILL.md) | Sizing, describing, or reviewing a change |
+| Runtime paths | [`trace`](../trace/SKILL.md) | Tracing how a feature runs or invoking `/trace` |
+| Plain writing | [`wdym`](../wdym/SKILL.md) | Explaining your work to a person |
 
-Each lesson lives in exactly one of these. Where a section here points
-elsewhere, the pointer is the whole rule; do not expect a second copy.
-
-If you are writing in a language with no reference here, the method below still
-applies in full. Follow the surrounding code's idiom, and say plainly that you
-had no language-specific guidance to lean on.
-
----
+For languages without a reference here, follow this method, match the
+surrounding idioms, and state plainly that you had no language-specific guide.
 
 ## 0. The loop
 
-Every task below, from a one-line fix to a subsystem, is this loop. When you
-are stuck, find which step you skipped.
+Every change—from a one-line fix to a subsystem—follows these eight steps. When
+stuck, check which step you skipped.
 
-1. **Restate the problem** in the product's words and as a condition that must
-   be true afterwards. If you cannot say what "done" looks like, you are not
-   ready to write.
-2. **Locate the information.** Who has what is needed to decide this? Read the
-   code that already does something similar; read the history of the code you
-   are about to touch.
-3. **Hypothesise the mechanism**, not the symptom. "It is slow" is a symptom;
-   "a per-item function walks all items" is a mechanism.
-4. **Try to refute it** before acting on it: reproduce, trace, measure. A
-   hypothesis that survives an honest attempt to break it is a finding; one
-   that has merely been stated is not.
-5. **Make the smallest change that makes the condition true**, designing the
-   interrupted, repeated, and concurrent cases before the happy one.
-6. **Prove it** the way the claim demands: a test that fails without the change,
-   a measurement with its workload, an argument that the invariant holds.
-7. **Describe it** so a stranger can evaluate it: why, what, what you did not
-   do, what you did not run.
-8. **Leave something that fails when the finding stops being true.** A fix
-   with no artefact holding it has a half-life of about two refactors.
-
-Steps 3 and 4 are where most wasted work lives, in both directions: acting on
-a hypothesis nobody tried to refute, and refusing to act until certainty
-arrives. The standard is a mechanism you can state and a way you tried to
-break it.
+1. **Restate the problem** in the product's words and as a concrete condition
+   that must hold afterward. Wait until "done" is clear before editing.
+2. **Locate the information.** Find who owns the facts needed to decide; read
+   similar code and the history of the files you plan to touch.
+3. **Hypothesise the mechanism.** State what causes the behaviour ("a per-item
+   function scans the whole list") rather than the symptom ("it is slow").
+4. **Try to refute it** before acting: reproduce, trace, or measure. Avoid both
+   untested guesses and waiting for certainty; state a mechanism and try to
+   break it.
+5. **Make the smallest change that satisfies the condition**, designing
+   interrupted, repeated, and concurrent paths before the happy path.
+6. **Prove it** as the claim demands: a test that fails without the change, a
+   measurement with its workload, or an argument that the invariant holds.
+7. **Describe it** so a stranger can judge it: why, what changed, what you left
+   out, and what you did not run.
+8. **Leave an automated check** that fails if the finding stops holding, so a
+   later refactor cannot quietly undo it.
 
 ## 1. Before writing anything
 
-**Read enough to be boring.** Find two or three places that already do
-something like what you are about to do, and match them: naming, error
-handling, layout, test style, comment density. Code that reads like the code
-around it is cheaper for everyone forever; a second style has to justify
-itself.
+**Match the surrounding code.** Read two or three nearby places doing similar
+work and match their naming, error handling, layout, test style, and comment
+density; introduce a new style only when justified. **Use the product's words**
+before writing a type—if you have to invent a word, keep looking.
 
-**Name the thing in the product's words.** If you cannot name the concept
-without inventing a word, you have not found it yet. Go find it before you
-write a type.
-
-**Answer four questions.** They take two minutes and they prevent most rework:
-
-1. *Who has the information needed to make this decision?* Put the
-   responsibility there, not where it is convenient to call from. Every fact
-   has one place in charge of it; if your code is guessing, copying, or
-   re-checking something another place owns, ask that place instead (the
-   [core rule](../system-architect/SKILL.md#core-rule-1-every-fact-has-one-authority)).
-2. *What must always be true?* Name the invariant and the function that
-   enforces it.
-3. *What happens if this stops halfway, runs twice, or races?* Design for that
-   before the happy path (§3).
-4. *How does this get deleted?* If the answer touches more than this module
+**Answer four questions before editing:**
+1. *Who owns the information to decide?* Put the logic there instead of
+   guessing, copying, or re-checking another owner's fact
+   ([core rule 1](../system-architect/SKILL.md#core-rule-1-every-fact-has-one-authority)).
+2. *What must always stay true?* Name the invariant and the enforcing function.
+3. *What happens if this stops halfway, runs twice, or races?* Solve that before
+   the happy path (§3).
+4. *How would someone delete this?* If removal touches more than this module
    plus one adapter, the boundary is wrong.
 
-**Check the altitude.** A feature that needs a new parameter on a core type, a
-new branch in a core function, or a flag threaded through is usually a
-capability that should be composed on top rather than absorbed into the middle.
-The exceptions and the reasoning are in
-[`system-architect`](../system-architect/SKILL.md#6-small-core-composable-pieces).
+**Check the level of the change.** Needing a new parameter on a core type, a new
+branch in a core function, or a threaded flag usually means composing on top of
+the core instead
+([`system-architect`](../system-architect/SKILL.md#6-small-core-composable-pieces)).
 
 ### Principle: explicit contracts and state transitions
 
-Use this approach when a use case's correctness depends on input expectations,
-intermediate states, or messages between owners. It works for UI actions,
-background work, persistence, and messages between systems. Define what the
-operation accepts, what must already be true, what must remain true, and what
-each output guarantees: its inputs, preconditions, invariants, and
-postconditions.
-
-Choose the representation that makes those expectations easiest to understand:
-validated methods, a reducer, a transition table, or a state machine. This is
-one coding principle to draw on; developers can use another approach that makes
-the behavior and its guarantees equally clear and testable.
-
-**Check meaning as well as shape.** A well-formed message can still belong to
-another owner, request, or generation, or arrive in a state that cannot accept
-it. Name the authoritative validator and transition owner. Route each entry
-path through that owner; callers consume its decision rather than reimplement
-the check. Validate a returned result against the request and state it came
-from before allowing it to change current state. That includes everything the
-result would set off: showing an error, clearing what the user typed, starting
-a timer, cleaning something up. An old answer that arrives late can be written
-to the log, but it must not do anything.
-
-Validate before a transform erases the difference you need to reject. Zipping,
-truncating, deduplicating, or coercing can make bad input look valid; check its
-shape and meaning first unless that loss is the promised behaviour. When a
-protocol allows repeated or conflicting declarations, apply its precedence
-rules to all of them. When writing the result, remove conflicting raw values
-even if they failed to parse, and preserve unrelated values. A parsed absence
-does not prove the raw declaration is gone.
-
-**Write the transitions before implementing them.** For a flow with meaningful
-intermediate states, use a table in its existing design document or module
-contract: current state, event/input, guard, effects, next state, and returned
-outcome. Include applicable refusal, interruption, retry, and uncertain-effect
-paths. A sequence diagram shows messages and order; the table defines what each
-step may do. Update the contract when adding a state or ordering. A simple
-operation can express this through its signature, API documentation, and tests;
-it does not need a state-machine framework or a new ADR.
-
-**Keep decisions separate from effects.** Where practical, a pure step takes
-the current state and event and returns a validated next state and intended
-effects, or a typed refusal. Distinguish written, unchanged and rejected when
-only actual writes should notify dependents. Orchestration performs the
-effects and feeds their observed outcomes back to the owner. Define the point at which state becomes
-visible or durable, and what remains authoritative if an effect fails or its
-outcome is unknown. Each intermediate state must have an honest meaning.
-Moving validation from definition to use changes which unused declarations
-are checked; treat that
-error timing as part of compatibility.
-
-**Prefer sequential work with one writer per consistency boundary.** Concurrent
-work needs a concrete reason, such as responsiveness or independent I/O. Name
-the protected state, synchronization mechanism, critical section, acquisition
-order where several locks exist, and ownership through cancellation and
-failure. An async function can interleave at an await even on one thread;
-revalidate assumptions there or retain explicit exclusive ownership. Independent
-processes need their own transaction or protocol guarantee; a local mutex does
-not protect remote state. Language-specific mechanics remain in the references.
-
-**Prove the contract through observable behavior.** Map the transition cases to
-tests, including valid inputs, invalid combinations, and applicable failure
-orderings. Assert the output and resulting authoritative state, including what
-stays unchanged on refusal. Use controlled scheduling for competing events;
-for async, I/O, or retry guarantees,
-[plan the proof before the code](references/testing.md#plan-the-proof-before-the-code).
-
-Use this prospectively and improve existing boundaries as they are touched where
-practical. If adopting the approach requires a substantial unrelated refactor,
-describe the useful follow-up separately. Claims about guarantees still need
-evidence; adopting the principle does not require an app-wide rewrite.
+When correctness depends on input rules, intermediate states, or messages
+between owners, define inputs, preconditions, invariants, and postconditions up
+front. Validate meaning before transforms erase bad input, keep pure decisions
+separate from effects, and prove transitions through observable behaviour. Full
+rules: [contracts & state](references/contracts-and-state.md).
 
 ## 2. While writing
 
-**Write the smallest thing that makes the requirement true.** Not the
-framework for a family of things like it. You will know the right abstraction
-on the third instance, and you will be wrong about it on the first.
-
-**Do not build choices nobody needs.** No speculative settings, extension
-points, generality, or layers that only forward. A setting earns its place
-through a caller's contract or supported workloads needing different policies
-that the owner cannot choose itself. Name its default, range, and trade-off;
-check that the setting actually changes the intended behaviour. One caller
-alone proves neither that a choice is needed nor that it should be a constant.
-
-**Extract on the second use, not the first**, and only when the two uses are
-the same *idea*, not coincidentally the same lines. A block, a local, or a
-comment is a cheaper abstraction than a function.
-
-**Make the control flow visible.** Early returns; conditions hoisted to the
-caller; no hidden global state deciding whether a function does anything. The
-one thing that does not move to the caller is a check another thread can
-invalidate: the owner of the state gets one operation that decides and acts
-under the same protection, and a caller-side pre-check is a hint, never the
-authority.
-
-**Put costs where the caller can see them.** Allocation, blocking, I/O, and
-retries are visible at the call site or named in the signature. A function that
-silently does an expensive thing is a landmine.
-
-**Comments say why.** The code says what. A comment earns its place by holding
-what the reader will not have: the constraint, the surprise, the thing you
-tried that did not work, the issue that caused this shape. A comment that
-paraphrases the line below it gets deleted.
-
-**Correct the name in the same change that invalidates it.** Renaming is cheap.
-Living with a name that no longer describes the thing is not.
-
-**When you merge several cases into one, check every place that used them.**
-Say `Warning` and `Error` become one `Message` with a level. Everything still
-compiles, but a check that used to mean "only warnings" may now quietly match
-errors too. The compiler cannot see that. Go through each old check and decide
-whether it meant "any of these" or "exactly this one".
+- **Build only what is needed now.** Wait for the third real instance before
+  designing a general abstraction.
+- **Skip speculative options.** Do not add unused settings, extension points, or
+  forwarding layers. A setting earns its place when a caller contract or
+  supported workloads need policies the owner cannot pick; state its default,
+  range, and trade-off, and verify it changes behaviour. One caller alone proves
+  neither that a setting is needed nor that it must be a constant.
+- **Extract on the second use**, only when both places express the same idea
+  rather than matching lines by coincidence. A local, block, or comment is often
+  simpler than a helper function.
+- **Keep control flow obvious.** Use early returns, hoist conditions to the
+  caller, and avoid hidden global state. Exception: if another thread can
+  invalidate a check, keep the check and action in one protected owner
+  operation—a caller-side pre-check is only a hint.
+- **Make costs visible.** Surface allocation, blocking, I/O, and retries at the
+  call site or in the signature.
+- **Comments explain why**—constraints, surprises, dead ends, or the issue that
+  forced a shape. Delete comments that paraphrase the code.
+- **Fix stale names in the same change.**
+- **Audit every caller when merging cases.** Merging `Warning` and `Error` into
+  `Message` with a level still compiles, but old checks may quietly match both;
+  verify whether each site meant "any of these" or "only this one".
 
 ## 3. Failure first
 
-Design the interrupted case before the happy path. The happy path will be
-fine; the system's real shape is decided by what happens when it is stopped,
-repeated, or entered twice.
+Design interrupted, repeated, and concurrent paths before the happy path. Ask
+six core questions:
 
-- **One meaning per state; one authority per fact.** Necessary mirrors across
-  native or process boundaries have one owner keeping them consistent. A sentinel
-  meaning two things will be read as the wrong one, and the case where it matters is always a retry or a
-  restart. Give each state its own name before you need to tell them apart.
-- **What you saw is a clue, not the fact you care about.** An empty read, a
-  zero, a `None`, a timeout, a process exiting, a request from localhost, a
-  file at a known path: each *suggests* something is finished, safe, or yours,
-  but something else could have caused it. Before acting, write down what
-  else it could mean. An empty read can mean the buffer was full, not that the
-  data ended. "The process I started exited" does not mean "everyone writing
-  to this pipe is done"; its children may still be writing. A command that
-  started is not a command that worked. Wait for the thing you actually need
-  to be true. The same goes for time: an id you saved before a delay only
-  shows the thing existed *then*. When queued or delayed work runs, look again.
-  If the thing may legally be gone, skip quietly; if it must still exist, fail
-  loudly.
-  A temporary `Pending` may mean the scheduler yielded, not that a queue is
-  empty. If taking work changes available capacity, reconcile the published
-  readiness at that transition, not just when work was queued. Empty bytes do
-  not prove a decoder has no unfinished record in its private state.
-  Name the event that starts a deadline. Moving a timeout past setup need not
-  mean moving the request too; preserve message and acknowledgement order.
-- **An id is only unique where it was made.** A counter that restarts at zero
-  each run, or a slot number that gets reused, will hand out the same id
-  twice. If you combine things built separately, make the ids unique when you
-  create them; do not try to fix duplicates after combining. List what makes
-  two things different: the same code run twice makes two things, so "where it
-  is written" is not enough, add which run it was. A hash is a fast way to look
-  something up, not proof two things are the same. If a cache keeps entries
-  longer than the thing an id points to, add a generation number to the key so
-  a reused id does not find old data.
-  Delayed work keeps the stable identity and resolves a replaceable handle
-  when it runs, rather than retrying with a handle from an older generation.
-- **Check the thing you will use, not the name that led to it.** If a name is
-  turned into something else before use (a host name into an address, a link
-  into its target, a relative path into a full one), run the check on the
-  result, at the step that uses it. A check on the name can reject early, but
-  it cannot be the only check. Saved output that can move needs internal references
-  anchored to that output; external references keep their own identity. Check
-  old stored forms and whether older readers understand the new form.
-- **Anything reserved is rolled back or filled.** A count, a slot, or a
-  published handle for a participant that a failing constructor never created
-  is a peer waiting forever. Inject the failure at each setup position and ask
-  who wakes the ones already started. A published placeholder needs an owner
-  that outlives its initiator, or cancellation must fill or revoke it for peers.
-- **Do not hold shared capacity for work that does not exist yet.** One idle
-  stream holding a single unit of a shared window can stop every other
-  stream. Take capacity when there is real work to use it, unless a standing
-  share per user is deliberate and sized against the total. *When* you take it
-  decides whether things can deadlock; *how much* decides how they compete.
-  (This is different from publishing intent early, below: that marks work as
-  in flight; it does not hold scarce capacity.)
-- **Publish intent before the first observable async boundary.** When one
-  operation can be triggered again while its setup can await, spawn, or call
-  out, the reservation is visible before that point, and every terminal path
-  (success, error, cancellation) clears it exactly once. Otherwise the second
-  trigger sees nothing in flight and starts a duplicate.
-- **A callback into code you do not control is a failure boundary.** While you
-  hold a lock or sit between two halves of a transition, a user-supplied
-  callback, destructor, clone, or formatter can panic, re-enter you, or block
-  on the thing you hold. Snapshot before dispatch, or queue the mutation and
-  replay it after, or prove locally that re-entry is impossible. Convention is
-  not a proof.
-- **Surrounding settings are inputs.** The current folder, environment
-  variables, language settings, the clock, the operating system, whatever a
-  package registry calls "latest" today: if one of these changes what your
-  code does, decide whether it is a stable snapshot or deliberately live state.
-  Pass snapshots along. For live process-wide changes, one owner coordinates
-  mutation and dependent native-cache refresh; a lock covers only participants
-  that use it. When several places need the same setting, one function works it out for all of
-  them. When work is prepared on one machine and runs on another (a
-  cross-build, a remote job, saved config), say whose rules each value follows
-  and check it by those rules.
-- **Cleanup ownership starts at acquisition.** Tie removal to a scope, guard,
-  or lifetime before the next fallible step, including partial setup. A cleanup
-  method on the finished object does not cover failure before that object
-  exists. A resource owned by a branch is acquired by that branch, as late as
-  possible, not up front for every branch.
-  Clean up only what you created. By the time you delete a shared file or
-  slot, someone newer may have replaced it with their own; check it is still
-  yours first.
-  If an outside system can still use a pointer or token into your state,
-  cleanup does not yet mean it can be freed. Failed unregister is not proof
-  the reference is gone; retain the state until revocation or another
-  documented guarantee proves no outside user remains.
-- **Returning a resource includes notifying live waiters owed that change.**
-  Name who can still wait, what lets them proceed, and what makes them runnable.
-  Skip a closed peer only if closure already woke or cancelled its waiters,
-  or none can exist. If liveness cannot be decided safely, a redundant wake
-  is better than missing a required one.
-- **Release transient state at its lifecycle boundary.** A long-lived owner
-  holds heavy phase-specific state no longer than the phase, with a defined way
-  to re-acquire it if a later legal event needs it. Before freeing something
-  early, list everything that still reads it and what proves each reader is
-  done. Check the live state, not "we are past that phase", because re-entry
-  can take you back.
-- **Idempotent, or keyed.** Assume anything can run twice. Overwriting
-  operations tolerate retries; appending ones need an identity that makes the
-  second attempt recognisable. Some things must happen exactly once, like
-  freeing memory. If several paths could each do it (normal close, shutdown,
-  timeout, the garbage collector), give one owner a single "I'll do it" claim.
-  Take the claim before calling out; deferred unregistration cannot prevent
-  a queued replay by itself. Whichever path takes the claim does the work;
-  the others do nothing. No path should guess from its own notes whether it
-  already happened.
-- **A temporary missing prerequisite does not finish accepted work.** Retain
-  work that the contract says should retry, and say what schedules another
-  attempt. Remove it on success or a defined cancellation or terminal refusal,
-  rather than consuming it merely because its dependency is not ready yet.
-  Before retrying after fallback, require progress toward the retry condition
-  or stop with the defined outcome instead of recursively repeating recovery.
-- **Put a rule where every path has to pass.** A limit, a "rebuild needed"
-  flag, a permission check: if only one caller looks at it, the other caller
-  skips it. Put it in the one place every request goes through, and keep it
-  private there so nobody can use it up or go around it.
-- **Every queue, buffer, and retry loop has a bound** and a stated behaviour at
-  the bound. Name what the bound protects and at which owner it is enforced: a
-  window in one caller is pacing, not a limit, if another path reaches the same
-  resource. Check the limit before you take more, not after: cap each read or
-  growth at what is left, or one read can jump far past the limit before the
-  check runs. A limit only works if the next step really took the item. If a
-  small queue empties into a big unlimited one, the small limit protects
-  nothing. Take an item off only once the next step has accepted it, and still
-  let "close" and "cancel" through while data waits. When several layers each
-  set a number, say which is the caller's hard limit and which is just a
-  default. A default never raises a limit the caller set, and an automatic tuner
-  may only lower it.
-  Name the unit too: a parsed record's budget is not its transport buffer's
-  capacity. Bound both partial acquisition and the complete item, including
-  secondary fragments, without counting unrelated buffered data against it.
-- **Decide what happens to accepted work at shutdown.** For each kind of work,
-  say what acceptance promises: buffered, queued, admitted, executed, or visible
-  to the receiver. Work promised a drain must not silently disappear; closed
-  admission returns an honest refusal. Graceful close goes through the layer
-  that owns pending output or protocol state. Name the last owner able to clean
-  up on each termination path: an in-process hook cannot run after that process
-  is force-killed. Indefinite outside input must not accidentally prevent
-  shutdown. State the smaller guarantee of a timed or forced stop separately.
-- **Authority is part of the key.** State owned by a principal (tenant, session,
-  window, user) is stored under the owner first and the local id second, so a
-  guessed id cannot select someone else's state and no caller has to remember
-  to check.
-- **Write the durable fact before announcing it**, and announce before acting on
-  it.
-- **Decide fatal versus survivable, and be consistent with the code around
-  you.**
+1. **State and identity:** Does every state have one meaning and one owner, with
+   ids unique across runs/generations and authority in the key?
+2. **Cues versus facts:** Are you acting on a confirmed fact, or a clue (empty
+   read, exit, timeout, unresolved name, ambient setting) with other causes?
+3. **Bounds and resources:** Does every queue, buffer, and retry loop enforce a
+   real bound on the single path all callers pass, without holding shared
+   capacity for idle work?
+4. **Cleanup and re-entrancy:** Is every reservation rolled back or filled on
+   failure, intent published before the first async boundary, cleanup tied to
+   acquisition, and every external callback treated as a panic/re-entry boundary?
+5. **Retries and duplication:** If this runs twice, is it idempotent or keyed,
+   with one execution claim for work that must run once?
+6. **Shutdown and progress:** What does accepting work promise at shutdown, and
+   does a temporary missing prerequisite keep accepted work alive?
+
+Full 20-rule operational checklist: [failure-first](references/failure-first.md).
 
 ## 4. Tests
 
-Choose evidence for the kind of change using [testing](references/testing.md#what-gets-a-test),
-including unchanged-contract evidence for a refactor. If a check cannot be
-written or run, say why.
+Choose evidence using [testing](references/testing.md#what-gets-a-test),
+including unchanged-contract evidence for refactors; explain if a check cannot
+be written or run.
 
-The rules for what to test, how, and what not to, live in
-[testing](references/testing.md). The ones you will need on every change:
-through the public surface, real dependencies over mocks, determinism injected,
-poll never sleep, minimal setup, named after the behaviour, and a test that
-cannot pass when the intended work never happened. When writing tests
-surfaces a probable bug, file it separately rather than fixing it inside the
-test change.
+Defaults on every change: test through the public surface, prefer real
+dependencies over mocks, inject determinism, poll rather than sleep, keep setup
+minimal, name tests after behaviour, and ensure the test fails if the work never
+happened. File unrelated bugs found while testing separately.
 
 ## 5. Performance
 
-Do not sprinkle it. Locate it.
+Locate bottlenecks before optimising:
 
-1. **Reproduce and profile first**, and name what you found. The function you
-   suspect is usually not the one. See [`method`](../method/SKILL.md) for the
-   full loop.
-2. **Look in this order**: repeated work (the accidental quadratic, the
-   defensive copy in a growing loop, the same thing computed per item);
-   synchronisation and wake-up overhead; queueing and retention; data movement
-   and allocation. It is an investigation order, not a frequency ranking, but
-   the first category dominates the others by orders of magnitude when it is
-   present.
-3. **State the expected magnitude.** "This is 1–2% of runtime, so expect
-   0.5–1% overall" tells the reviewer how much complexity the change may
-   justify.
-4. **Match the evidence to the claim.** A quantified claim carries its
-   scenario, baseline, result, and machine. A mechanism-only claim ("removes
-   one serialisation per request") names the cost that disappeared and says
-   that end-to-end impact was not measured. A count that stands in for the
-   outcome (lines of generated code, allocations, instructions) measures only
-   itself; report it as that count, and do not write "faster" until you have
-   timed the thing you mean. Both are honest; an invented
-   magnitude and a bare "faster" are not. Either way, check that the benchmark
-   actually runs the code you changed. When the code *picks* between
-   strategies, show two things: that it picks the right one every time (run it
-   many times, and try inputs close to where the choice flips), and that the
-   chosen one is fast. One fast run can hide a choice that flips at random.
-5. **For a pure performance change, or a cheaper version of an existing
-   operation, prove the observable contract is unchanged.** For a deterministic
-   batch API that is identical output on the full fixture set and on
-   pathological inputs. Where the API promises streaming, progress,
-   cancellation, or scheduling, *when* a result becomes visible, what ordering
-   is permitted, and what resources are bounded are all part of the contract. So
-   are the steps that keep the other side moving, such as flushing before
-   waiting for more input. The same final bytes arriving only at end of stream
-   is a regression, and a faster copy that skips the flush can hang the other
-   side forever.
-6. **Benchmark the workload it should lose on** and report both: low and high
-   concurrency, short and long tasks, full and partial batches, the first run
-   and later runs. If you changed the order work is done in, report the most
-   memory it used as well as how soon the first result appeared. For code-size
-   or compile-time work, report the counter-metrics too (build time, runtime if
-   dispatch changed). Mixed results are reported as mixed, not summarised as
-   "faster". For incremental work, vary unchanged input, one changed item and
-   full invalidation; vary live registry size separately from actual removals.
-7. **Skip work only when no obligation remains unsatisfied.** A durable write
-   can be skipped if the same complete state is already durable. Keep distinct
-   terminal writes and anything still owed to an output, future iteration,
-   error, close, cancel, release or waiter. Keep the structural
-   bookkeeping the surrounding protocol needs. Test it by putting something
-   malformed where the work would have happened and asserting nothing
-   surfaces.
-8. **Do not start work before its consumer can schedule it.** If the consumer
-   owns batching, admission, or priority, construction stays lazy; an operation
-   that is already running when it is handed over makes the window decorative.
-9. **Prepare once only while the result stays valid.** Include the selected
-   fields and operation direction in that validity argument; cheap recomputation
-   can be safer than a cached flag. Cache failures only for their valid lifetime,
-   so a temporary failure does not become permanent by accident.
-10. **Revert an optimisation you cannot maintain.** Whatever the benchmark says,
-    code nobody can safely modify is a liability.
-11. **A tuned number says what it was tuned for.** Next to a magic number like
-    "keep entries for 3 frames", write what it was measured against and what
-    it protects. When that underlying code changes, measure again or remove
-    the number.
+1. **Reproduce and profile first**, and name what you found
+   ([`method`](../method/SKILL.md)).
+2. **Investigate in order:** repeated work (accidental quadratics, copying in a
+   growing loop, per-item recomputation), synchronisation and wake-up overhead,
+   queueing and retention, then data movement and allocation.
+3. **State the expected impact** ("1–2% of runtime, so expect 0.5–1% overall")
+   so reviewers can weigh the complexity.
+4. **Match evidence to the claim.** Quantified claims need scenario, baseline,
+   result, and machine; mechanism-only claims name the removed cost without
+   claiming end-to-end speedup.
 
-Language specifics: [Rust](references/rust.md#performance-in-rust),
+Full rules: [performance](references/performance.md) (strategy switches,
+contract/flush parity, losing workloads, skipping work, lazy construction, cache
+lifetimes, maintainability, tuned numbers). Language specifics:
+[Rust](references/rust.md#performance-in-rust),
 [React & TypeScript](references/react-typescript.md#performance-in-react).
 
 ## 6. Shaping the change
 
-One reason per change; refactor, test, then change as separate commits;
-structural work landed ahead of the feature that needs it; large features as
-inert infrastructure first; under a couple of hundred changed lines where you
-can. The mechanics, the description format, and what to subtract before judging
-a diff's size are owned by
-[`pull-requests`](../pull-requests/SKILL.md#size-and-shape).
-
-**Update the prose and configuration the change invalidates**, in the same
-change. Grep for the term; the invalidated sentence is rarely in the file you
-edited. That includes CI: if a CI job pins an old version of a dependency you
-just upgraded, it keeps testing the old setup and passes for the wrong reason.
+One reason per change; separate refactor, test, and behaviour commits; land
+structural prep ahead of features; ship large features as inert infrastructure
+first; aim for under a couple hundred changed lines where practical
+([`pull-requests`](../pull-requests/SKILL.md#size-and-shape)). Update prose and
+configuration invalidated by the change in the same diff, including CI pins.
 
 ## 7. Reviewing your own diff
 
-Read it as a stranger, in the web view rather than the editor, before anyone
-else sees it. Attention in this order: right problem, right design, correct,
-tested, readable, named in the product's words, tidy. Never lead with tidy.
-
-The questions to ask are the reviewer's questions in
-[`pull-requests`](../pull-requests/SKILL.md#what-to-actually-look-for). The
-one to ask first of your own work: **is the claim in my description actually
-true?** Walk the interrupted, repeated, and re-entered paths yourself rather
-than accepting your own answer.
-
-When using [explicit contracts and state transitions](#principle-explicit-contracts-and-state-transitions),
-review the chosen representation against the behavior it promises: identify its
-enforcing code and transition tests, and describe any deferred adoption work.
+Read your diff in the web view as a stranger before sharing, checking in order:
+right problem, right design, correct, tested, readable, domain names, tidy
+([`pull-requests`](../pull-requests/SKILL.md#what-to-actually-look-for)). First
+verify that your description's claim is true by walking interrupted, repeated,
+and re-entered paths yourself. When using
+[contracts & state](references/contracts-and-state.md), check the representation
+against promised behaviour, enforcing code, transition tests, and deferred
+follow-up.
 
 ## 8. Finishing and reporting
 
-- The change does one thing, and the message says which.
-- A test fails without it.
-- It touches the number of files it *should* touch, after subtracting moves,
-  generated files, lockfiles, and formatting.
-- No absence-invariant was violated (see
-  [structure](../system-architect/references/structure.md#the-absences)).
-- Anything expensive to reverse has a written note or a
-  [decision record](../system-architect/references/adr.md).
-- Names match the domain language, including in tests.
-- **Report what actually happened.** Every check is run, not run, blocked, or
-  inconclusive, and the report says which. If tests fail, say so with the
-  output. If part of the scope was skipped, say which part and why; scaling the
-  work down is not your call to make silently. A number you did not measure is
-  reported as someone else's, or not at all.
+- The change does one thing, and the description says what; a test fails without
+  it.
+- It touches only the files it should (subtracting moves, generated files,
+  lockfiles, and formatting), and breaks no absence-invariant
+  ([structure](../system-architect/references/structure.md#the-absences)).
+- Anything expensive to reverse has a written note or
+  [decision record](../system-architect/references/adr.md); names match the
+  domain language, including in tests.
+- **Report what actually happened.** Mark every check as run, not run, blocked,
+  or inconclusive, with output on failure. State skipped scope and why rather
+  than shrinking work silently. Report unmeasured numbers as someone else's or
+  leave them out.
