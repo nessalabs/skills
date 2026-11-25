@@ -81,6 +81,15 @@ lifecycle logic runs unchanged in tests. Process-global state for such a
 subsystem is what makes this impossible, so the first move is usually giving it
 an owner.
 
+**Rollout seams for replacing a mechanism.** Swapping a scheduler, a queue, or
+a storage engine is the one case where a mode switch earns its keep so you can
+turn the new path off safely. Treat it as a rollout seam, not permanent
+configurability: give it an owner, contract parity between both paths, CI on
+both, a rollback procedure, and a written criterion for deleting it. State
+whether selection happens only at startup, because switching live requires a
+drain protocol. If a replacement is too coupled to be made optional, you cannot
+roll it back in an incident.
+
 ---
 
 ## Feature and capability gating
@@ -115,6 +124,12 @@ add it.
 API/ABI level at spawn and check support before the first dependent call in
 each process. Scope the value to those children; declaring an older version
 does not make newer compiled bindings compatible.
+
+**Capability-token invariants.** An unguessable capability token may
+deliberately combine identity and authority. When it does, treat its entropy,
+leakage, revocation, and lifetime as explicit invariants rather than using the
+token as a substitute for an owner the system already knows. Once the structure
+enforces isolation, delete the extra security machinery it made redundant.
 
 ---
 
@@ -374,3 +389,19 @@ fix turns out to reintroduce the original defect, and the author says so; the
 change is reverted. Every step of that is correct. Benchmarks model what you
 thought of; observability is what makes the rest diagnosable; a fix that
 reintroduces the defect is not a fix; reverting is a normal move.
+
+**Migrations are a semantic dependency graph.** A later migration depends on
+durable facts, not on an intermediate shape an earlier migration happened to
+introduce. Before changing or deleting migration N, search every later one for
+fields, values, and sentinels N introduced. Keep a current-format no-op fixture
+and representative legacy fixtures.
+
+**Escape-hatch flags are debt.** When the answer to a design flaw is a flag to
+turn it off, the flaw is still there with an added configuration surface, and
+the flag only helps people who already know they need it after being hurt.
+Track such flags as debt. Distinguish what the flag hides: covering a design
+flaw is debt, while covering the rollout of a mechanism replacement is a
+rollout seam with a removal date (see [Seams](#seams)). Reject flags that buy
+flexibility nobody asked for; keep the ones that buy reversibility. Apply a
+workaround only where the problem exists, and remove it once the problem is
+gone.

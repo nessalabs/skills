@@ -15,29 +15,38 @@ fits, and you can also invoke them by name.
     [React & TypeScript](./coding/references/react-typescript.md), each opening
     with how to think in that language before the specifics;
     [testing](./coding/references/testing.md), which owns every rule about
-    what to test and how.
+    what to test and how;
+    [contracts and state](./coding/references/contracts-and-state.md),
+    [failure-first catalogue](./coding/references/failure-first.md), and
+    [performance details](./coding/references/performance.md).
 - **[system-architect](./system-architect/SKILL.md)**: how to structure a
   codebase so the next change stays cheap. Information ownership, boundaries,
   mechanism from policy, a small core with capability composed on top,
   invariants and authority-shaped state first. Reach for it before adding a
   module or a dependency between two parts of a system, or when a change
   starts touching more files than it should.
-  - References: [structure](./system-architect/references/structure.md),
+  - References: [core rule examples](./system-architect/references/core-rule-examples.md),
+    [structure](./system-architect/references/structure.md),
     [patterns](./system-architect/references/patterns.md),
     [velocity](./system-architect/references/velocity.md),
-    [decision records](./system-architect/references/adr.md).
+    [decision records](./system-architect/references/adr.md),
+    [review and smells](./system-architect/references/review-and-smells.md).
 - **[pull-requests](./pull-requests/SKILL.md)**: how to describe a change and
   how to review one. The description template (background, problem,
   solution, checks, tradeoffs, rollout), what evidence each kind of claim
   needs, commit conventions, sizing and splitting, and the review standard
   including what blocks and what does not. Reach for it when opening,
   splitting, or reviewing a pull request, or writing a commit message.
-  - References: [diagrams](./pull-requests/references/diagrams.md),
+  - References: [writing details](./pull-requests/references/writing-details.md),
+    [review checklist](./pull-requests/references/review-checklist.md),
+    [diagrams](./pull-requests/references/diagrams.md),
     [the template](./pull-requests/references/pull_request_template.md).
 - **[method](./method/SKILL.md)**: how defects get found, how a hypothesis gets
   verified, what counts as evidence, and which artefact holds a fix in place.
   Reach for it when investigating a bug, chasing a performance problem, or
   deciding what to automate or run in CI.
+  - References: [instruments](./method/references/instruments.md),
+    [anti-drift](./method/references/anti-drift.md).
 - **[trace](./trace/SKILL.md)**: reconstruct the real runtime path of a
   feature from source, one hop at a time through the syntax tree, with locks,
   waits, handoffs, and state writes marked. In debugging mode it starts from
@@ -52,6 +61,7 @@ fits, and you can also invoke them by name.
   no test looked at, and add that as tests in one pull request. Reach for it
   for a retro on recent bugs, from a daily scheduled job, or when
   `/test-gaps` is invoked.
+  - References: [git and automation](./test-gaps/references/git-and-automation.md).
 - **[wdym](./wdym/SKILL.md)**: write every message a person reads so they get
   it on the first read: the plain version first, sentences that are easy to
   follow, and asks that are easy to answer. Reach for it for any reply, status
