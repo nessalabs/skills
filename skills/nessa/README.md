@@ -16,6 +16,16 @@ skills: a procedure someone follows, the way to think first, then the steps.
   service, a user flow, or a lifecycle, or when `/nessa-docs` is invoked.
   The file format lives in
   [references/format.md](./nessa-docs/references/format.md).
+- **[build-artifacts](./build-artifacts/SKILL.md)**: write a brief, design
+  doc, status report or idea portfolio as one HTML page in Nessa's house
+  style: the plain answer first, every claim marked sourced or judgment, and
+  the same parts for parallel ideas. The agent writes Markdown with a few
+  directives and [render.py](./build-artifacts/scripts/render.py) applies the
+  winning theme (project, then user, then the Nessa default). Reach for it
+  when someone asks for a page, a write-up or a report, or when
+  `/build-artifacts` is invoked. The syntax lives in
+  [references/format.md](./build-artifacts/references/format.md) and theming
+  in [references/themes.md](./build-artifacts/references/themes.md).
 - **[install-ios-over-the-air](./install-ios-over-the-air/SKILL.md)**: put a
   signed nessa-ios build on a registered iPhone from a link: export with
   development signing on a Mac, publish it with an `itms-services` manifest

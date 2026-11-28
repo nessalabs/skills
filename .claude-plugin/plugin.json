@@ -1,6 +1,6 @@
 {
   "name": "nessalabs-skills",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Engineering skills distilled from the source, history, and review discussions of long-lived high-performance open source projects: how to design a system, how to write a change, and how to find and prove things.",
   "author": {
     "name": "Nessa Labs",
@@ -20,6 +20,8 @@
     "typescript",
     "nessa",
     "docs",
+    "html",
+    "writing",
     "tailscale",
     "ios"
   ],
@@ -33,6 +35,7 @@
     "./skills/engineering/wdym",
     "./skills/nessa/connect-a-computer",
     "./skills/nessa/nessa-docs",
+    "./skills/nessa/build-artifacts",
     "./skills/nessa/install-ios-over-the-air"
   ]
 }
