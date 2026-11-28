@@ -75,8 +75,8 @@
   --shadow: none;
 }
 
-/* ---------- Design tokens: dark ---------- */
-@media (prefers-color-scheme: dark) {
+/* ---------- Design tokens: dark (screen only; print stays light) ---------- */
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --color-bg: #141413;
     --color-surface: #1c1c1a;
@@ -96,6 +96,7 @@
     --shadow: none;
   }
 }
+@media screen {
 :root[data-theme="dark"] {
   --color-bg: #141413;
   --color-surface: #1c1c1a;
@@ -113,6 +114,7 @@
   --color-placeholder: #d9b64a;
   --color-code-bg: #252522;
   --shadow: none;
+}
 }
 </style>
 <style id="theme-overrides">
@@ -355,7 +357,29 @@ ul.sources > li { margin: var(--space-2) 0; }
 
 /* ---------- Print ---------- */
 @media print {
-  :root { --color-bg: #fff; --color-surface: #fff; --shadow: none; }
+  /* Beat the dark selectors, which are (0, 2, 0). Screen media already
+     keeps them off the page; these values cover a dark preference anyway. */
+  :root,
+  :root:not([data-theme="light"]),
+  :root[data-theme="dark"] {
+    color-scheme: light;
+    --color-bg: #fbfaf7;
+    --color-surface: #ffffff;
+    --color-surface-2: #f3f1ec;
+    --color-text: #1c1b19;
+    --color-muted: #66625a;
+    --color-border: #e3dfd6;
+    --color-accent: #3a52c8;
+    --color-accent-ink: #ffffff;
+    --color-has: #1f7a4d;
+    --color-partial: #9a5b06;
+    --color-missing: #b3261e;
+    --color-sourced: #2b6688;
+    --color-judgment: #6f45a8;
+    --color-placeholder: #806200;
+    --color-code-bg: #f3f1ec;
+    --shadow: none;
+  }
   html { font-size: 11pt; }
   main { max-width: none; padding: 0; }
   .layout { display: block !important; padding: 0; }

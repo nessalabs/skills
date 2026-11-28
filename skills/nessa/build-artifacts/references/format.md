@@ -25,7 +25,9 @@ comes from here.
 `##` sections and `###` subsections (they build the contents sidebar; it
 appears once there are three or more `##` sections), `####`, paragraphs,
 `-` and `1.` lists (one level), pipe tables, fenced code, `>` quotes,
-`**bold**`, `*italic*`, `` `code` ``, and `[links](url)`. Raw HTML is escaped,
+`**bold**`, `*italic*`, `` `code` ``, and `[links](url)`. A link, including a
+quote `href`, is an anchor only for `http`, `https`, `mailto`, a relative
+path, or a `#anchor`. Any other scheme stays plain text. Raw HTML is escaped,
 not passed through.
 
 ## Inline labels

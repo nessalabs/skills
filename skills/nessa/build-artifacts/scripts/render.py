@@ -172,12 +172,30 @@ def theme_css(theme: dict) -> str:
     dark_css = "".join(f"  --{k}: {css_value(v)};\n" for k, v in dark_all.items())
     out = f":root {{\n{light}}}\n"
     if dark_css:
-        out += ("@media (prefers-color-scheme: dark) {\n:root:not([data-theme=\"light\"]) {\n"
-                f"{dark_css}}}\n}}\n:root[data-theme=\"dark\"] {{\n{dark_css}}}\n")
+        # Screen only. Print must keep the light palette, or near-white text
+        # lands on a white page when the reader prefers dark.
+        out += ("@media screen and (prefers-color-scheme: dark) {\n"
+                ":root:not([data-theme=\"light\"]) {\n"
+                f"{dark_css}}}\n}}\n"
+                "@media screen {\n:root[data-theme=\"dark\"] {\n"
+                f"{dark_css}}}\n}}\n")
     return out
 
 
 # ---------------------------------------------------------------- inline markdown
+
+def allowed_href(href: str) -> bool:
+    """http, https, mailto, a relative path, or a #anchor. Anything else is text."""
+    href = href.strip()
+    if not href or any(c in href for c in "\n\r\t"):
+        return False
+    if href.startswith(("//", "\\\\")):
+        return False
+    scheme = re.match(r"^([A-Za-z][A-Za-z0-9+.-]*):", href)
+    if scheme:
+        return scheme.group(1).lower() in {"http", "https", "mailto"}
+    return True
+
 
 def inline(text: str, theme: dict) -> str:
     labels = theme["components"]["labels"]
@@ -191,7 +209,10 @@ def inline(text: str, theme: dict) -> str:
     text = html.escape(text, quote=False)
 
     def link(m):
-        href = m.group(2).replace('"', "%22")
+        href = html.unescape(m.group(2))
+        if not allowed_href(href):
+            return m.group(0)
+        href = html.escape(href, quote=True)
         return f'<a href="{href}">{m.group(1)}</a>'
 
     text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", link, text)
@@ -441,7 +462,11 @@ class Renderer:
             else:
                 warn(f"{self.source}:{base}: :::quote has no date=; say when it was said or read")
             if attrs.get("href"):
-                parts.append(f'<a href="{html.escape(attrs["href"])}">link</a>')
+                raw = str(attrs["href"])
+                if allowed_href(raw):
+                    parts.append(f'<a href="{html.escape(raw, quote=True)}">link</a>')
+                else:
+                    parts.append(html.escape(raw, quote=False))
             if badge:
                 parts.append(badge)
             cap = ", ".join(parts)
@@ -906,9 +931,7 @@ def voice_brief(args) -> int:
     }.get(v.get("person"), f"Person: {v.get('person')}")
     print("# Voice for this artifact")
     print(f"Layers, winning first: {' > '.join(reversed(used))}\n")
-    print("Sentence rules: follow the 'Sentence rules' section of SKILL.md. They are")
-    print("enough on their own. Reading the wdym skill is optional; if you read it,")
-    print("it wins where the two differ.\n")
+    print("Sentence rules: wdym owns them (skills/engineering/wdym/SKILL.md).\n")
     print("## Always (fixed, no override can change these)")
     for rule in v["floor"]["rules"]:
         print(f"- {rule}")

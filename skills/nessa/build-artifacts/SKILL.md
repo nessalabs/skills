@@ -33,8 +33,9 @@ they cannot tell what is true. Most of the rules below fix one of those.
 
 1. **Load the voice.** Run `python3 scripts/render.py --voice --project <repo>`.
    It prints the resolved writing rules: the fixed floor, then the register,
-   person and word list from the winning theme. Follow the sentence rules
-   below for every sentence; the voice settings only adjust them.
+   person and word list from the winning theme. Follow
+   [wdym](../../engineering/wdym/SKILL.md) for every sentence; it owns those
+   rules, and the voice settings only adjust them.
    - `--project <folder>` is where the renderer starts searching upward for
      `.nessa/artifacts/theme.toml`. When the page is not about a repo, leave
      it out (the search then starts from the document's folder, or the
@@ -61,19 +62,10 @@ they cannot tell what is true. Most of the rules below fix one of those.
 
 ## Sentence rules
 
-These rules are enough on their own. They are a short copy of the wdym skill
-([wdym](../../engineering/wdym/SKILL.md)).
-Reading wdym is optional; if it is installed and you read it, it wins where
-the two differ.
-
-- Put the plain answer first. Skip recaps, filler openings and closings.
-- Use everyday words. Swap a hard word for a simpler one instead of defining it.
-- Keep the small words ("the", "that"). Keep the doer near the verb.
-- Do not stack nouns. Say how the things relate.
-- Say what actually happens. Code does not "want" or "decide".
-- One idea per sentence. Split a sentence the reader would read twice.
-- No dashes as punctuation, no slogans, no "it's not X, it's Y".
-- Say how sure you are at the claim, and only where it matters.
+Follow [wdym](../../engineering/wdym/SKILL.md) for every sentence, since it
+owns those rules. The voice floor still requires what wdym does not: mark each
+claim sourced or judgment, and label a made-up number or example as a
+placeholder.
 
 ## Page rules
 
