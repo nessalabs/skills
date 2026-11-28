@@ -1,0 +1,25 @@
+# Example user override. In real use this lives in Nessa user settings
+# (proposed: ~/.nessa/artifacts/theme.toml). It sets only what it changes;
+# everything else falls through to the Nessa default.
+
+[meta]
+name = "saurav"
+
+[tokens]
+color-accent = "#c2410c"
+font-heading = "Fraunces, \"Iowan Old Style\", Georgia, serif"
+font-body = "\"IBM Plex Sans\", ui-sans-serif, -apple-system, \"Segoe UI\", sans-serif"
+weight-heading = "600"
+
+[tokens.dark]
+color-accent = "#fb923c"
+
+[voice]
+person = "we"
+add_banned_words = ["game-changer"]
+add_rules = ["Spell out every acronym the first time, even common ones."]
+
+[components]
+idea_layout = "stack"
+# No [components.style] table: this override keeps the plain-text labels,
+# status words, numerals, bullets and bordered lead from the Nessa default.

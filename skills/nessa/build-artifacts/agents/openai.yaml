@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Artifacts"
+  short_description: "Write a doc or report as one polished HTML page"
+  default_prompt: "Use $build-artifacts to write this up as a single HTML page: the plain answer first, sourced and judgment labels, and the right skeleton for the kind of document. Render it with the resolved theme and check it."

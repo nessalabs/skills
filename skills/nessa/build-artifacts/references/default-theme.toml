@@ -1,0 +1,67 @@
+# Nessa default theme: voice and components.
+# The design tokens (colors, type, spacing) are declared once, in
+# template.html. An override sets [tokens] keys by the same names.
+# Resolution: project > user > this file. A key an override leaves out
+# keeps the value from the layer below it.
+
+[meta]
+name = "nessa"
+
+[voice]
+# plain: wdym, as written. formal: no contractions, no first-person asides,
+#   still plain words. terse: shortest sentences, lists allowed earlier.
+register = "plain"
+# first: "I", "my judgment". we: "we", "our judgment". neutral: no pronoun.
+person = "first"
+audience = "a smart reader who was not in the conversation and has five minutes"
+max_sentence_words = 25
+banned_words = [
+  "additionally", "crucial", "delve", "enhance", "foster", "landscape",
+  "leverage", "pivotal", "robust", "seamless", "showcase", "synergy",
+  "testament", "underscore", "utilize", "vibrant",
+]
+# These two lists add to the layers below instead of replacing them.
+add_banned_words = []
+add_rules = []
+
+# The floor. No override may set or remove these; render.py refuses a
+# theme file that has a [voice.floor] table.
+[voice.floor]
+rules = [
+  "Lead with the answer in plain words before any table, diagram or detail.",
+  "Mark where every claim came from: sourced (say from what) or judgment.",
+  "Label any number or example you made up as a placeholder.",
+  "Say what you did not read or check.",
+  "Never state a guess as a fact to match a tone.",
+]
+
+[components]
+toc = "left"          # left (sidebar) | right | inline (list above the text) | off; shown with 3+ sections
+idea_layout = "grid"  # grid | stack
+mermaid = "cdn"       # cdn (loads mermaid from jsdelivr) | off (shows source)
+eyebrow = true        # show the document kind above the title
+
+# How labels, status, ranks, list markers and the lead box look.
+# The Nessa defaults are plain text: no pills, badges, dots, colored label
+# backgrounds or side bars. The other values exist only so a user or project
+# theme can opt in on purpose; the Nessa default never uses them.
+[components.style]
+labels = "text"       # text (italic muted words) | badge
+status = "text"       # text (a bold plain word) | pill
+ranks = "numeral"     # numeral (1. 2. 3.) | circle
+markers = "bullet"    # bullet (ordinary bullets) | symbol (! ? x)
+callout = "border"    # border (thin full border) | tint | bar
+
+[components.labels]
+has = "Has"
+partial = "Partial"
+missing = "Missing"
+sourced = "Sourced"
+judgment = "Judgment"
+placeholder = "Placeholder"
+
+[components.kinds]
+brief = "Decision brief"
+design = "Design doc"
+status = "Status report"
+portfolio = "Idea portfolio"

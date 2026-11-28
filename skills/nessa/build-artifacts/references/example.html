@@ -1,0 +1,650 @@
+<!doctype html>
+<!--
+  Nessa default artifact theme.
+  This file is the one place that declares the design tokens (the --custom
+  properties in the first :root block) and every component style.
+  scripts/render.py fills the {{...}} slots. A theme override never edits
+  this file: it sets token values, which render.py writes into THEME_CSS
+  after these defaults, so only the keys it sets change.
+-->
+<html lang="en" data-theme-name="nessa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="generator" content="nessa build-artifacts">
+<script>document.documentElement.classList.add("js")</script>
+<title>Example brief: should Acme Notes add offline sync?</title>
+<style>
+/* ---------- Design tokens: light (default) ---------- */
+:root {
+  /* color */
+  --color-bg: #fbfaf7;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3f1ec;
+  --color-text: #1c1b19;
+  --color-muted: #66625a;
+  --color-border: #e3dfd6;
+  --color-accent: #3a52c8;
+  --color-accent-ink: #ffffff;
+  --color-has: #1f7a4d;
+  --color-partial: #9a5b06;
+  --color-missing: #b3261e;
+  --color-sourced: #2b6688;
+  --color-judgment: #6f45a8;
+  --color-placeholder: #806200;
+  --color-code-bg: #f3f1ec;
+  /* derived: follow the base colors, so an override of one updates these */
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+  --color-has-soft: color-mix(in srgb, var(--color-has) 12%, var(--color-surface));
+  --color-partial-soft: color-mix(in srgb, var(--color-partial) 13%, var(--color-surface));
+  --color-missing-soft: color-mix(in srgb, var(--color-missing) 11%, var(--color-surface));
+  --color-sourced-soft: color-mix(in srgb, var(--color-sourced) 11%, var(--color-surface));
+  --color-judgment-soft: color-mix(in srgb, var(--color-judgment) 11%, var(--color-surface));
+  --color-placeholder-soft: color-mix(in srgb, var(--color-placeholder) 12%, var(--color-surface));
+
+  /* type */
+  --font-body: ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: var(--font-body);
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --leading: 1.6;
+  --leading-tight: 1.25;
+  --weight-heading: 650;
+
+  /* space and shape */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --measure: 46rem;
+  --toc-width: 14rem;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --border-width: 1px;
+  --shadow: none;
+}
+
+/* ---------- Design tokens: dark (screen only; print stays light) ---------- */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #141413;
+    --color-surface: #1c1c1a;
+    --color-surface-2: #252522;
+    --color-text: #ecebe6;
+    --color-muted: #a29e94;
+    --color-border: #34332f;
+    --color-accent: #8ea0ff;
+    --color-accent-ink: #10131f;
+    --color-has: #5cc08a;
+    --color-partial: #e3a548;
+    --color-missing: #f07a70;
+    --color-sourced: #79b6da;
+    --color-judgment: #b99ae6;
+    --color-placeholder: #d9b64a;
+    --color-code-bg: #252522;
+    --shadow: none;
+  }
+}
+@media screen {
+:root[data-theme="dark"] {
+  --color-bg: #141413;
+  --color-surface: #1c1c1a;
+  --color-surface-2: #252522;
+  --color-text: #ecebe6;
+  --color-muted: #a29e94;
+  --color-border: #34332f;
+  --color-accent: #8ea0ff;
+  --color-accent-ink: #10131f;
+  --color-has: #5cc08a;
+  --color-partial: #e3a548;
+  --color-missing: #f07a70;
+  --color-sourced: #79b6da;
+  --color-judgment: #b99ae6;
+  --color-placeholder: #d9b64a;
+  --color-code-bg: #252522;
+  --shadow: none;
+}
+}
+</style>
+<style id="theme-overrides">
+/* no overrides: Nessa default tokens */
+</style>
+<style>
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 17px; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading);
+  text-rendering: optimizeLegibility;
+}
+main { max-width: var(--measure); margin: 0 auto; }
+.layout { margin: 0 auto; padding: var(--space-7) var(--space-5) var(--space-8); }
+h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: var(--weight-heading); line-height: var(--leading-tight); letter-spacing: -0.01em; }
+h1 { font-size: var(--text-3xl); margin: var(--space-2) 0 var(--space-4); letter-spacing: -0.02em; }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-2); padding-top: var(--space-5); border-top: var(--border-width) solid var(--color-border); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-2); }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); }
+p { margin: 0 0 var(--space-4); }
+a { color: var(--color-accent); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+strong { font-weight: 650; }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--color-code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+pre { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--color-code-bg); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-4); overflow-x: auto; line-height: 1.5; }
+pre code { background: none; padding: 0; font-size: inherit; }
+ul, ol { margin: 0 0 var(--space-4); padding-left: 1.4em; }
+li { margin: var(--space-1) 0; }
+li::marker { color: var(--color-muted); }
+blockquote { margin: 0 0 var(--space-4) var(--space-5); padding: 0; color: var(--color-muted); }
+blockquote p:last-child { margin-bottom: 0; }
+hr { border: none; border-top: var(--border-width) solid var(--color-border); margin: var(--space-6) 0; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/*
+  Nessa default style rules (hard bans): no colored bar down the side of
+  anything, and no pills, badges, chips, dots or colored label backgrounds.
+  Labels, status and ranks are plain text. A theme can opt back in through
+  [components.style]; those styles sit at the end of this file, scoped to the
+  html data- attributes, and the default never sets them.
+*/
+
+/* ---------- Header ---------- */
+.doc-header { margin-bottom: var(--space-6); }
+.eyebrow { font-size: var(--text-sm); font-variant-caps: all-small-caps; letter-spacing: 0.06em; color: var(--color-muted); margin: 0; }
+.summary { font-size: var(--text-lg); color: var(--color-muted); margin: 0 0 var(--space-4); line-height: 1.5; }
+.meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); font-size: var(--text-sm); color: var(--color-muted); margin: 0; padding: 0; list-style: none; }
+.meta li { margin: 0; }
+
+/* ---------- Table of contents ---------- */
+.toc { border-top: var(--border-width) solid var(--color-border); border-bottom: var(--border-width) solid var(--color-border); padding: var(--space-4) 0; margin: 0 0 var(--space-6); }
+.toc h2 { font-size: var(--text-sm); font-variant-caps: all-small-caps; letter-spacing: 0.06em; font-weight: 600; color: var(--color-muted); border: 0; padding: 0; margin: 0 0 var(--space-2); }
+.toc ol { columns: 2; column-gap: var(--space-6); margin: 0; padding-left: 1.3em; font-size: var(--text-sm); }
+.toc li { break-inside: avoid; margin: 0 0 var(--space-1); }
+.toc a { color: var(--color-text); text-decoration: none; }
+.toc a:hover { color: var(--color-accent); text-decoration: underline; }
+
+/* ---------- Labels and status: plain text ---------- */
+.provenance { font-style: italic; font-weight: 400; color: var(--color-muted); }
+.caption > .provenance { font-style: italic; }
+.caption > .provenance::after { content: "."; }
+.caption > .provenance + .provenance::before { content: " "; }
+.status { font-weight: 650; color: var(--color-text); }
+
+/* ---------- Section caption ---------- */
+.caption { font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-4); }
+
+/* ---------- Lead and notes ---------- */
+.lead { border: var(--border-width) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); padding: var(--space-5) var(--space-5) var(--space-4); margin: var(--space-5) 0 var(--space-6); }
+.lead-label { font-size: var(--text-sm); margin: 0 0 var(--space-2); color: var(--color-muted); }
+.lead-label .name { font-variant-caps: all-small-caps; letter-spacing: 0.06em; font-weight: 650; color: var(--color-text); margin-right: var(--space-2); }
+.lead > :last-child { margin-bottom: 0; }
+.lead p { font-size: var(--text-lg); line-height: 1.5; }
+.note { background: var(--color-surface-2); border-radius: var(--radius); padding: var(--space-3) var(--space-4); margin: var(--space-4) 0; font-size: var(--text-sm); }
+.note > :last-child { margin-bottom: 0; }
+.note-label { font-weight: 650; margin: 0 0 var(--space-1); }
+
+/* ---------- Quotes ---------- */
+figure.quote { margin: 0 0 var(--space-5) var(--space-5); padding: 0; }
+figure.quote blockquote { margin: 0; color: var(--color-text); font-size: var(--text-lg); line-height: 1.5; }
+figure.quote blockquote p::before { content: "\201C"; margin-left: -0.45em; }
+figure.quote blockquote p:last-child::after { content: "\201D"; }
+figure.quote figcaption { margin-top: var(--space-1); font-size: var(--text-sm); color: var(--color-muted); }
+figure.quote figcaption .who { color: var(--color-text); }
+
+/* ---------- Tables ---------- */
+.table-wrap { overflow-x: auto; margin: 0 0 var(--space-5); }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); line-height: 1.45; }
+th, td { text-align: left; vertical-align: top; padding: var(--space-3) var(--space-4) var(--space-3) 0; border-bottom: var(--border-width) solid var(--color-border); }
+th:last-child, td:last-child { padding-right: 0; }
+thead th { border-bottom: 1.5px solid var(--color-text); font-size: var(--text-sm); font-variant-caps: all-small-caps; letter-spacing: 0.05em; color: var(--color-muted); font-weight: 650; }
+td:first-child { font-weight: 600; }
+.state-table td:first-child { font-family: var(--font-mono); font-weight: 500; font-size: 0.92em; white-space: nowrap; }
+
+/* ---------- Ranked list: plain numerals ---------- */
+ol.ranked { list-style: none; counter-reset: rank; padding: 0; }
+ol.ranked > li { counter-increment: rank; position: relative; padding: var(--space-3) 0 var(--space-3) 2.2rem; margin: 0; }
+ol.ranked > li::before { content: counter(rank) "."; position: absolute; left: 0; top: var(--space-3); font-family: var(--font-heading); font-size: var(--text-lg); font-weight: 600; line-height: var(--leading-tight); color: var(--color-muted); font-variant-numeric: tabular-nums; }
+ol.ranked strong:first-child { display: block; font-size: var(--text-lg); line-height: var(--leading-tight); margin-bottom: var(--space-1); }
+
+/* ---------- Idea cards ---------- */
+.idea-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-5); }
+.idea-grid.stack, .idea-grid.count-1 { grid-template-columns: 1fr; }
+/* An odd card out spans the row and lays its fields in two columns, so it never sits alone in half the width. */
+.idea-grid:not(.stack) > .idea:last-child:nth-child(odd):not(:first-child) { grid-column: 1 / -1; }
+.idea-grid:not(.stack) > .idea:last-child:nth-child(odd):not(:first-child) dl { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--space-5); }
+.idea-grid:not(.stack) > .idea:last-child:nth-child(odd):not(:first-child) dl > .field-pitch { grid-column: 1 / -1; }
+.idea { background: var(--color-surface); border: var(--border-width) solid var(--color-border); border-radius: var(--radius); padding: var(--space-4) var(--space-5); box-shadow: var(--shadow); break-inside: avoid; }
+.idea header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
+.idea header .provenance { font-size: var(--text-sm); }
+.idea h3 { margin: 0; font-size: var(--text-lg); }
+.idea dl { margin: 0; }
+.idea dl > div { padding: var(--space-2) 0; border-top: var(--border-width) solid var(--color-border); }
+.idea dt { font-size: var(--text-sm); font-variant-caps: all-small-caps; letter-spacing: 0.06em; color: var(--color-muted); font-weight: 650; margin-bottom: 0.1em; }
+.idea dd { margin: 0; font-size: var(--text-sm); line-height: 1.5; }
+.idea dd p { margin: 0; }
+.idea dl > div.field-pitch dd { font-size: var(--text-base); font-weight: 500; }
+
+/* ---------- Diagram ---------- */
+figure.diagram { margin: 0 0 var(--space-5); border: var(--border-width) solid var(--color-border); border-radius: var(--radius); padding: var(--space-4); }
+figure.diagram pre.mermaid { background: none; border: none; padding: 0; margin: 0; text-align: center; }
+figure.diagram pre.mermaid:not([data-processed]) { text-align: left; color: var(--color-muted); }
+figure.diagram figcaption { font-size: var(--text-sm); color: var(--color-muted); margin-top: var(--space-3); }
+
+/* ---------- Invariants, risks, questions, skip: plain lists ---------- */
+ol.invariants { list-style: none; counter-reset: inv; padding: 0; }
+ol.invariants > li { counter-increment: inv; padding: var(--space-2) 0 var(--space-2) 2.2rem; position: relative; margin: 0; border-bottom: var(--border-width) solid var(--color-border); }
+ol.invariants > li:first-child { border-top: var(--border-width) solid var(--color-border); }
+ol.invariants > li::before { content: "I" counter(inv); position: absolute; left: 0; top: var(--space-2); font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted); }
+ul.marked { list-style: disc; padding-left: 1.3em; }
+ul.marked > li { margin: var(--space-2) 0; }
+
+/* ---------- Sources ---------- */
+ul.sources { list-style: disc; padding-left: 1.3em; font-size: var(--text-sm); }
+ul.sources > li { margin: var(--space-2) 0; }
+
+.doc-footer { margin-top: var(--space-8); padding-top: var(--space-4); border-top: var(--border-width) solid var(--color-border); font-size: var(--text-xs); color: var(--color-muted); }
+
+/* ---------- Sidebar contents (left by default, or right) ----------
+   Plain text only: no side bar, no accent border, no pill or dot. The current
+   section is shown by weight and text color. With JS off the sidebar is a
+   static list (beside the text on wide screens, above it on narrow ones). */
+.toc-side { font-size: var(--text-sm); line-height: 1.4; margin: 0 0 var(--space-6); }
+.toc-head { display: flex; align-items: center; justify-content: flex-start; gap: 0.4em; margin-bottom: var(--space-2); }
+.toc-title { margin: 0; font-variant-caps: all-small-caps; letter-spacing: 0.06em; font-weight: 650; color: var(--color-muted); }
+.toc-close { margin-left: auto; }
+.toc-side ol { list-style: none; margin: 0; padding: 0; }
+.toc-side li { margin: 0; }
+.toc-side ol ol { padding-left: var(--space-3); }
+.toc-side a { display: block; padding: 0.3em 0; color: var(--color-muted); text-decoration: none; }
+.toc-side a:hover { color: var(--color-text); text-decoration: underline; }
+.toc-side a[aria-current="true"] { color: var(--color-text); font-weight: 650; }
+.toc-btn { font: inherit; font-size: var(--text-sm); color: var(--color-muted); background: none; border: 0; padding: 0.2em 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: var(--color-border); }
+.toc-btn:hover { color: var(--color-text); text-decoration-color: currentColor; }
+.toc-btn:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; }
+.toc-btn.toc-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 0.4em; width: auto; height: 1.4rem; padding: 0 0.15em;
+  text-decoration: none; color: var(--color-muted);
+  background: none; border: 0; border-radius: 0;
+  font-variant-caps: all-small-caps; letter-spacing: 0.06em; font-weight: 650;
+}
+.toc-btn.toc-icon:hover,
+.toc-btn.toc-icon:focus-visible { color: var(--color-text); text-decoration: none; }
+.toc-btn.toc-icon:focus-visible { outline: 1px solid var(--color-text); outline-offset: 2px; }
+.toc-btn.toc-icon svg { display: block; width: 20px; height: 20px; flex: none; overflow: visible; }
+.toc-btn[hidden], .toc-scrim[hidden] { display: none; }
+.toc-close, .toc-open, .toc-btn.toc-icon.toc-open { display: none; }
+
+@media (min-width: 1000px) {
+  /* Sidebar + gap + reading column are one tight group, centered in the
+     viewport so leftover space is equal on both sides. The gap stays fixed;
+     it never stretches. When the sidebar is hidden the text recenters, with
+     the toggle tucked beside it. */
+  .layout.has-toc {
+    display: grid;
+    column-gap: var(--space-6);
+    align-items: start;
+    justify-content: center;
+    width: 100%;
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
+  }
+  .layout.has-toc > main { grid-row: 1; margin: 0; max-width: var(--measure); width: 100%; }
+  .layout.has-toc > .toc-side {
+    grid-row: 1;
+    position: sticky;
+    top: var(--space-6);
+    max-height: calc(100vh - 2 * var(--space-6));
+    overflow-y: auto;
+    margin: 0;
+    padding-top: 0;
+  }
+  .layout.toc-left { grid-template-columns: var(--toc-width) minmax(0, var(--measure)); }
+  .layout.toc-left > .toc-side { grid-column: 1; }
+  .layout.toc-left > main { grid-column: 2; }
+  .layout.toc-right { grid-template-columns: minmax(0, var(--measure)) var(--toc-width); }
+  .layout.toc-right > main { grid-column: 1; }
+  .layout.toc-right > .toc-side { grid-column: 2; }
+  .layout.toc-collapsed { grid-template-columns: 1fr minmax(0, var(--measure)) 1fr; }
+  .layout.toc-collapsed > main { grid-column: 2; }
+  .layout.toc-left.toc-collapsed > .toc-side { grid-column: 1; justify-self: end; width: auto; max-height: none; overflow: visible; }
+  .layout.toc-right.toc-collapsed > .toc-side { grid-column: 3; justify-self: start; width: auto; max-height: none; overflow: visible; }
+  .layout.toc-collapsed > .toc-side .toc-title { display: none; }
+  .layout.toc-collapsed > .toc-side .toc-head { margin: 0; }
+  .layout.toc-left.toc-collapsed > .toc-side .toc-head { justify-content: flex-end; }
+  .layout.toc-right.toc-collapsed > .toc-side .toc-head { justify-content: flex-start; }
+}
+
+@media (max-width: 999.98px) {
+  .js .layout.has-toc > .toc-side { position: fixed; top: 0; bottom: 0; z-index: 30; width: min(20rem, 86vw); margin: 0; padding: var(--space-5); overflow-y: auto; background: var(--color-surface); box-shadow: 0 0 32px rgb(0 0 0 / 0.18); visibility: hidden; transform: translateX(100%); transition: transform 0.18s ease, visibility 0s linear 0.18s; }
+  .js .layout.toc-right > .toc-side { right: 0; }
+  .js .layout.toc-left > .toc-side { left: 0; transform: translateX(-100%); }
+  .js.toc-panel-open .layout.has-toc > .toc-side { visibility: visible; transform: none; transition: transform 0.18s ease; }
+  .js .toc-btn.toc-icon.toc-toggle { display: none; }
+  .js .toc-close { display: inline; }
+  .js .toc-btn.toc-icon.toc-open { display: inline-flex; position: fixed; top: var(--space-3); right: var(--space-3); left: auto; z-index: 20; background: none; width: auto; height: auto; padding: 0.15em 0.2em; justify-content: flex-start; }
+  .js .toc-btn.toc-icon.toc-open.at-left { right: auto; left: var(--space-3); }
+  .toc-scrim { position: fixed; inset: 0; z-index: 25; background: rgb(0 0 0 / 0.28); }
+  .toc-side a { padding: 0.45em 0; }
+  .js .layout.has-toc { padding-top: var(--space-7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toc-side { transition: none !important; }
+}
+
+@media (max-width: 640px) {
+  .idea-grid { grid-template-columns: 1fr; }
+  .idea-grid > .idea:last-child:nth-child(odd):not(:first-child) dl { display: block; }
+  html { font-size: 16px; }
+  .layout { padding: var(--space-6) var(--space-4) var(--space-7); }
+  .toc ol { columns: 1; }
+}
+
+/* ---------- Print ---------- */
+@media print {
+  /* Beat the dark selectors, which are (0, 2, 0). Screen media already
+     keeps them off the page; these values cover a dark preference anyway. */
+  :root,
+  :root:not([data-theme="light"]),
+  :root[data-theme="dark"] {
+    color-scheme: light;
+    --color-bg: #fbfaf7;
+    --color-surface: #ffffff;
+    --color-surface-2: #f3f1ec;
+    --color-text: #1c1b19;
+    --color-muted: #66625a;
+    --color-border: #e3dfd6;
+    --color-accent: #3a52c8;
+    --color-accent-ink: #ffffff;
+    --color-has: #1f7a4d;
+    --color-partial: #9a5b06;
+    --color-missing: #b3261e;
+    --color-sourced: #2b6688;
+    --color-judgment: #6f45a8;
+    --color-placeholder: #806200;
+    --color-code-bg: #f3f1ec;
+    --shadow: none;
+  }
+  html { font-size: 11pt; }
+  main { max-width: none; padding: 0; }
+  .layout { display: block !important; padding: 0; }
+  .toc-side, .toc-open, .toc-scrim { display: none !important; }
+  .toc { display: none; }
+  h2, h3, .caption { break-after: avoid; }
+  .idea, figure.diagram, figure.quote, .lead, tr, ol.ranked > li, ol.invariants > li { break-inside: avoid; }
+  .idea-grid { display: block; }
+  .idea { margin-bottom: var(--space-3); }
+  ul.sources a::after { content: " (" attr(href) ")"; color: var(--color-muted); word-break: break-all; }
+  a { color: inherit; }
+}
+
+/* ---------- Opt-in styles (never used by the Nessa default) ----------
+   Turned on only by a user or project theme through [components.style]. */
+html[data-labels="badge"] .provenance { display: inline-block; font-style: normal; font-size: var(--text-xs); font-weight: 600; line-height: 1; padding: 0.3em 0.6em; border-radius: 999px; vertical-align: 0.12em; }
+html[data-labels="badge"] .caption > .provenance::after { content: none; }
+html[data-labels="badge"] .provenance-sourced { color: var(--color-sourced); background: var(--color-sourced-soft); }
+html[data-labels="badge"] .provenance-judgment { color: var(--color-judgment); background: var(--color-judgment-soft); }
+html[data-labels="badge"] .provenance-placeholder { color: var(--color-placeholder); background: var(--color-placeholder-soft); }
+html[data-status="pill"] .status { display: inline-flex; align-items: center; gap: 0.35em; font-size: var(--text-xs); padding: 0.3em 0.6em; border-radius: 999px; }
+html[data-status="pill"] .status::before { content: ""; width: 0.5em; height: 0.5em; border-radius: 50%; background: currentColor; }
+html[data-status="pill"] .status-has { color: var(--color-has); background: var(--color-has-soft); }
+html[data-status="pill"] .status-partial { color: var(--color-partial); background: var(--color-partial-soft); }
+html[data-status="pill"] .status-missing { color: var(--color-missing); background: var(--color-missing-soft); }
+html[data-ranks="circle"] ol.ranked > li { padding-left: 3.1rem; }
+html[data-ranks="circle"] ol.ranked > li::before { content: counter(rank); width: 2.1rem; height: 2.1rem; border-radius: 50%; display: grid; place-items: center; font-size: var(--text-sm); color: var(--color-accent-ink); background: var(--color-accent); }
+html[data-markers="symbol"] ul.risks > li::marker { content: "!  "; color: var(--color-partial); font-weight: 700; }
+html[data-markers="symbol"] ul.questions > li::marker { content: "?  "; color: var(--color-sourced); font-weight: 700; }
+html[data-markers="symbol"] ul.skip > li::marker { content: "\00d7  "; color: var(--color-missing); font-weight: 700; }
+html[data-callout="bar"] .lead { border-left: 4px solid var(--color-accent); background: var(--color-accent-soft); }
+html[data-callout="tint"] .lead { background: var(--color-accent-soft); border-color: transparent; }
+</style>
+</head>
+<body>
+<button type="button" class="toc-btn toc-icon toc-open at-left" aria-expanded="false" aria-controls="toc-side" aria-label="Show contents" title="Show contents" hidden><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3.25" y="3.25" width="13.5" height="13.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 3.25v13.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span class="toc-open-label">Contents</span></button><div class="toc-scrim" hidden></div>
+<div class="layout has-toc toc-left">
+<aside class="toc-side" id="toc-side" aria-labelledby="toc-title"><div class="toc-head"><p class="toc-title" id="toc-title">Contents</p><button type="button" class="toc-btn toc-icon toc-toggle" aria-expanded="true" aria-controls="toc-list" aria-label="Hide contents" title="Hide contents" hidden><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3.25" y="3.25" width="13.5" height="13.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 3.25v13.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><button type="button" class="toc-btn toc-close" hidden>Close</button></div><nav id="toc-list" aria-labelledby="toc-title"><ol><li><a href="#the-short-version">The short version</a></li><li><a href="#what-users-told-us">What users told us</a></li><li><a href="#where-the-app-stands">Where the app stands</a></li><li><a href="#options-compared">Options compared</a></li><li><a href="#what-to-do-first">What to do first</a></li><li><a href="#ideas">Ideas</a></li><li><a href="#how-one-edit-moves">How one edit moves</a><ol><li><a href="#what-must-always-hold">What must always hold</a></li></ol></li><li><a href="#what-to-skip">What to skip</a></li><li><a href="#risks-and-open-questions">Risks and open questions</a><ol><li><a href="#risks">Risks</a></li><li><a href="#open-questions">Open questions</a></li></ol></li><li><a href="#how-this-page-was-made">How this page was made</a></li></ol></nav></aside>
+<main>
+<header class="doc-header">
+<p class="eyebrow">Decision brief</p>
+<h1>Example brief: should Acme Notes add offline sync?</h1>
+<p class="summary">A sample brief about a made-up app, written to show every component. The answer: build offline sync for one device first, and skip real-time collaboration.</p>
+<ul class="meta"><li>Nov 27, 2026</li><li>Sample content</li></ul>
+</header>
+
+<article class="doc-body">
+<h2 id="the-short-version">The short version</h2>
+<p>Acme Notes loses edits when the laptop goes offline, and that is the top complaint in the sample support log. The app already saves every edit locally, so the missing piece is sending those saved edits once the connection is back.</p>
+<aside class="lead" aria-label="Recommendation"><p class="lead-label"><span class="name">Recommendation</span><span class="provenance provenance-judgment">Judgment</span></p><p>Build offline sync for one person on one device first. It fixes the top complaint with pieces the app already has. Leave real-time collaboration for later.</p></aside>
+<h2 id="what-users-told-us">What users told us</h2>
+<p class="caption"><span class="provenance provenance-placeholder">Placeholder: invented survey</span> These quotes are made up for the example. A real page would use a sourced label that names the survey and its date.</p>
+<figure class="quote"><blockquote><p>I wrote two pages on the train and they were gone when I got home.</p></blockquote><figcaption><span class="who">Respondent 14, sample survey</span>, Nov 20, 2026, <span class="provenance provenance-placeholder">Placeholder</span></figcaption></figure>
+<figure class="quote"><blockquote><p>I don't need live editing with my team. I need my own notes to stop vanishing.</p></blockquote><figcaption><span class="who">Respondent 31, sample survey</span>, Nov 21, 2026, <span class="provenance provenance-placeholder">Placeholder</span></figcaption></figure>
+<h2 id="where-the-app-stands">Where the app stands</h2>
+<p class="caption"><span class="provenance provenance-sourced">Sourced: sample repo, read Nov 27, 2026</span> The middle column comes from the code. The status labels are my judgment.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Need</th><th scope="col">What the app has today</th><th scope="col">Status</th></tr></thead><tbody>
+<tr><td>Edits survive going offline</td><td>Every edit is saved to a local database first.</td><td><strong class="status status-has">Has</strong></td></tr>
+<tr><td>Edits reach the server later</td><td>A retry queue exists but drops items after 3 tries.</td><td><strong class="status status-partial">Partial</strong></td></tr>
+<tr><td>Two devices editing one note</td><td>Last write wins. No merge.</td><td><strong class="status status-missing">Missing</strong></td></tr>
+</tbody></table></div>
+<h2 id="options-compared">Options compared</h2>
+<p class="caption"><span class="provenance provenance-judgment">Judgment</span> <span class="provenance provenance-placeholder">Placeholder</span> The effort numbers are values I picked to show the shape, not estimates.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Option</th><th scope="col">Fixes the top complaint</th><th scope="col">Effort</th><th scope="col">Main risk</th></tr></thead><tbody>
+<tr><td>Finish the retry queue</td><td>Yes, for one device</td><td>2 weeks <span class="provenance provenance-placeholder">Placeholder</span></td><td>Old edits arriving after newer ones</td></tr>
+<tr><td>Real-time collaboration</td><td>Yes, and more</td><td>3 months <span class="provenance provenance-placeholder">Placeholder</span></td><td>Large new system to run</td></tr>
+<tr><td>Do nothing</td><td>No</td><td>None</td><td>Users keep losing work</td></tr>
+</tbody></table></div>
+<h2 id="what-to-do-first">What to do first</h2>
+<p class="caption"><span class="provenance provenance-judgment">Judgment</span> Ranked by what fixes the most for the least work.</p>
+<ol class="ranked">
+<li><strong>Stop dropping queued edits.</strong> The queue gives up after 3 tries, so a long trip offline loses work. Keep items until the server accepts them.</li>
+<li><strong>Send edits in the order they were made.</strong> Without this, an old edit can overwrite a newer one.</li>
+<li><strong>Show what is still waiting.</strong> A small "3 edits not sent yet" line tells people their work is safe.</li>
+<li><strong>Measure how often two devices clash.</strong> That number decides whether collaboration is worth building.</li>
+</ol>
+<h2 id="ideas">Ideas</h2>
+<p class="caption"><span class="provenance provenance-judgment">Judgment</span> Sample ideas. Each card has the same parts in the same order.</p>
+<div class="idea-grid count-3"><article class="idea"><header><h3>Sync status line</h3><span class="provenance provenance-judgment">Judgment</span></header><dl><div class="field-pitch"><dt>Pitch</dt><dd>A quiet line at the bottom that says how many edits are waiting to be sent.</dd></div><div class="field-who-it-s-for"><dt>Who it&#x27;s for</dt><dd>Anyone who works on trains or planes.</dd></div><div class="field-why-we-win"><dt>Why we win</dt><dd>The local database already knows what is unsent.</dd></div><div class="field-smallest-first-version"><dt>Smallest first version</dt><dd>A count and a "Send now" button.</dd></div><div class="field-risks"><dt>Risks</dt><dd>People may worry more when they see a number.</dd></div></dl></article>
+<article class="idea"><header><h3>Conflict copy</h3><span class="provenance provenance-judgment">Judgment</span></header><dl><div class="field-pitch"><dt>Pitch</dt><dd>When two devices clash, keep both versions side by side instead of picking one.</dd></div><div class="field-who-it-s-for"><dt>Who it&#x27;s for</dt><dd>People who edit the same note on a phone and a laptop.</dd></div><div class="field-why-we-win"><dt>Why we win</dt><dd>It needs no merge logic, only a second copy.</dd></div><div class="field-smallest-first-version"><dt>Smallest first version</dt><dd>Save the losing edit as "Note (conflict copy)".</dd></div><div class="field-risks"><dt>Risks</dt><dd>Too many copies if clashes are common.</dd></div></dl></article>
+<article class="idea"><header><h3>Offline notice</h3><span class="provenance provenance-judgment">Judgment</span></header><dl><div class="field-pitch"><dt>Pitch</dt><dd>Say plainly when the app is offline, so nobody is surprised later.</dd></div><div class="field-who-it-s-for"><dt>Who it&#x27;s for</dt><dd>People who don't notice when the connection drops.</dd></div><div class="field-why-we-win"><dt>Why we win</dt><dd>The app already checks the connection before each save.</dd></div><div class="field-smallest-first-version"><dt>Smallest first version</dt><dd>The word "Offline" in grey next to the note title.</dd></div><div class="field-risks"><dt>Risks</dt><dd>A notice that flickers on a weak connection is worse than none.</dd></div></dl></article></div>
+<h2 id="how-one-edit-moves">How one edit moves</h2>
+<p class="caption"><span class="provenance provenance-judgment">Judgment</span> The life of one queued edit, from the sample design.</p>
+<div class="table-wrap"><table class="state-table"><thead><tr><th scope="col">State</th><th scope="col">Saved locally</th><th scope="col">On the server</th><th scope="col">Leaves by</th></tr></thead><tbody>
+<tr><td>Saved</td><td>Yes</td><td>No</td><td>Connection comes back</td></tr>
+<tr><td>Sending</td><td>Yes</td><td>Maybe</td><td>Server accepts, or the request fails</td></tr>
+<tr><td>Accepted</td><td>Yes</td><td>Yes</td><td>Final</td></tr>
+<tr><td>Waiting</td><td>Yes</td><td>No</td><td>Retry timer, with no limit on tries</td></tr>
+</tbody></table></div>
+<figure class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; Saved
+  Saved --&gt; Sending: online
+  Sending --&gt; Accepted: server says yes
+  Sending --&gt; Waiting: request fails
+  Waiting --&gt; Sending: retry timer
+  Accepted --&gt; [*]</pre><figcaption>One queued edit, from save to accepted.</figcaption></figure>
+<h3 id="what-must-always-hold">What must always hold</h3>
+<ol class="invariants">
+<li>An edit is never removed from the queue until the server has accepted it.</li>
+<li>Edits to one note reach the server in the order they were made.</li>
+<li>Sending the same edit twice changes the note once.</li>
+</ol>
+<h2 id="what-to-skip">What to skip</h2>
+<p class="caption"><span class="provenance provenance-judgment">Judgment</span></p>
+<ul class="marked skip">
+<li>Building our own sync protocol. Use the server's existing save call.</li>
+<li>Real-time cursors and presence. They do not fix the top complaint.</li>
+</ul>
+<h2 id="risks-and-open-questions">Risks and open questions</h2>
+<p class="caption"><span class="provenance provenance-judgment">Judgment</span></p>
+<h3 id="risks">Risks</h3>
+<ul class="marked risks">
+<li>A very long queue could make the first sync after a trip slow.</li>
+<li>Users on old app versions will still drop edits until they update.</li>
+</ul>
+<h3 id="open-questions">Open questions</h3>
+<ul class="marked questions">
+<li>How many users edit on more than one device? This decides the next step.</li>
+<li>Should the "Send now" button exist, or should sending always be automatic?</li>
+</ul>
+<h2 id="how-this-page-was-made">How this page was made</h2>
+<p>Everything here is sample content written to show the components. A real page would say what was read and when, and what was not read.</p>
+<ul class="sources">
+<li><a href="format.md">build-artifacts format reference</a>, the directive syntax this page uses</li>
+<li><a href="https://github.com/nessalabs/skills/blob/wip/skills/engineering/wdym/SKILL.md">wdym</a>, the writing rules the voice builds on</li>
+<li>Sample support log, the team's shared drive at support/2026-11.csv, read Nov 27, 2026 <span class="provenance provenance-placeholder">Placeholder</span></li>
+</ul>
+</article>
+<footer class="doc-footer">Rendered with the nessa theme by Nessa build-artifacts. Contains 7 placeholder value(s); check them before relying on this page.</footer>
+</main>
+</div>
+<script>
+// Sidebar contents. Plain JS, no dependencies. Without JS the list is static.
+(function () {
+  var root = document.documentElement;
+  var side = document.getElementById("toc-side");
+  if (!side) return;
+  var layout = side.parentElement;
+  var list = document.getElementById("toc-list");
+  var toggle = side.querySelector(".toc-toggle");
+  var closeBtn = side.querySelector(".toc-close");
+  var openBtn = document.querySelector(".toc-open");
+  var scrim = document.querySelector(".toc-scrim");
+  var wide = window.matchMedia("(min-width: 1000px)");
+  var KEY = "nessa-artifact-toc-collapsed";
+  var lastFocus = null;
+  toggle.hidden = closeBtn.hidden = openBtn.hidden = false;
+
+  function saved() { try { return localStorage.getItem(KEY) === "1"; } catch (e) { return false; } }
+  function save(v) { try { localStorage.setItem(KEY, v ? "1" : "0"); } catch (e) {} }
+
+  function setCollapsed(collapsed) {
+    var c = collapsed && wide.matches;
+    layout.classList.toggle("toc-collapsed", c);
+    list.hidden = c;
+    toggle.setAttribute("aria-expanded", String(!c));
+    var label = c ? "Show contents" : "Hide contents";
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+  }
+  toggle.addEventListener("click", function () {
+    var c = !layout.classList.contains("toc-collapsed");
+    save(c);
+    setCollapsed(c);
+  });
+
+  function isOpen() { return root.classList.contains("toc-panel-open"); }
+  function openPanel() {
+    lastFocus = document.activeElement;
+    root.classList.add("toc-panel-open");
+    openBtn.setAttribute("aria-expanded", "true");
+    side.setAttribute("role", "dialog");
+    side.setAttribute("aria-modal", "true");
+    scrim.hidden = false;
+    closeBtn.focus();
+  }
+  function closePanel(returnFocus) {
+    if (!isOpen()) return;
+    root.classList.remove("toc-panel-open");
+    openBtn.setAttribute("aria-expanded", "false");
+    side.removeAttribute("role");
+    side.removeAttribute("aria-modal");
+    scrim.hidden = true;
+    if (returnFocus !== false) (lastFocus || openBtn).focus();
+  }
+  openBtn.addEventListener("click", openPanel);
+  closeBtn.addEventListener("click", function () { closePanel(); });
+  scrim.addEventListener("click", function () { closePanel(); });
+  side.addEventListener("click", function (e) {
+    if (!wide.matches && e.target.closest("a")) closePanel(false);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!isOpen()) return;
+    if (e.key === "Escape") { e.preventDefault(); closePanel(); return; }
+    if (e.key === "Tab") {
+      var f = side.querySelectorAll("button:not([hidden]), a[href]");
+      var vis = Array.prototype.filter.call(f, function (el) { return el.offsetParent !== null; });
+      if (!vis.length) return;
+      var first = vis[0], last = vis[vis.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  function onMode() { closePanel(false); setCollapsed(saved()); }
+  if (wide.addEventListener) wide.addEventListener("change", onMode); else wide.addListener(onMode);
+  onMode();
+
+  // Mark the section being read: the last heading above a line near the top.
+  var links = Array.prototype.slice.call(list.querySelectorAll("a"));
+  var heads = links.map(function (a) { return document.getElementById(a.getAttribute("href").slice(1)); });
+  var ticking = false;
+  function mark() {
+    ticking = false;
+    var line = window.innerHeight * 0.25, current = 0;
+    for (var i = 0; i < heads.length; i++) {
+      if (heads[i] && heads[i].getBoundingClientRect().top <= line) current = i;
+    }
+    var docH = document.documentElement.scrollHeight;
+    if (docH > window.innerHeight + 2 && window.innerHeight + window.scrollY >= docH - 2) current = heads.length - 1;
+    links.forEach(function (a, i) {
+      if (i === current) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+    });
+  }
+  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(mark); } }, { passive: true });
+  mark();
+})();
+</script>
+<script type="module">
+// Optional: the only network request. Diagrams fall back to their source text.
+const toColor = (name) => {
+  const probe = document.createElement("span");
+  probe.style.color = `var(${name})`;
+  document.body.appendChild(probe);
+  const c = getComputedStyle(probe).color;
+  probe.remove();
+  const ctx = document.createElement("canvas").getContext("2d");
+  ctx.fillStyle = c;
+  return ctx.fillStyle;
+};
+try {
+  const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+  const font = getComputedStyle(document.body).fontFamily;
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "base",
+    securityLevel: "strict",
+    themeVariables: {
+      fontFamily: font,
+      fontSize: "14px",
+      background: toColor("--color-surface"),
+      primaryColor: toColor("--color-surface-2"),
+      primaryBorderColor: toColor("--color-muted"),
+      primaryTextColor: toColor("--color-text"),
+      lineColor: toColor("--color-muted"),
+      textColor: toColor("--color-text"),
+      secondaryColor: toColor("--color-surface"),
+      tertiaryColor: toColor("--color-surface"),
+      labelBackgroundColor: toColor("--color-surface"),
+    },
+  });
+  await mermaid.run({ querySelector: "pre.mermaid" });
+} catch (err) {
+  console.warn("mermaid did not load; showing diagram source", err);
+}
+document.documentElement.dataset.rendered = "true";
+</script>
+</body>
+</html>
